@@ -1,5 +1,5 @@
 import { db } from '../db.js';
-import { escapeHtml, toast, fmtDate, debounce, wordCount, openModal, closeModal, bus } from '../utils.js';
+import { escapeHtml, renderManuscript, toast, fmtDate, debounce, wordCount, openModal, closeModal, bus } from '../utils.js';
 import { rewriteChapter } from '../memoryEngine.js';
 
 bus.on('chapters-changed', () => {
@@ -49,10 +49,21 @@ async function openChapterEditor(id) {
   openModal(`
     <div class="paper" style="padding:20px;">
       <div class="card-row"><input type="text" id="editor-title" value="${escapeHtml(chapter.title)}" style="font-family:'Cormorant Garamond',serif; font-size:20px; border:none; background:transparent; padding:0;"><span class="muted" id="editor-save-badge">Guardado ✓</span></div>
-      <hr><textarea class="paper-text" id="editor-content" rows="18">${escapeHtml(chapter.content)}</textarea>
+      <hr><div class="paper-readonly manuscript-rendered" id="editor-reading">${renderManuscript(chapter.content)}</div><textarea class="paper-text" id="editor-content" rows="18" style="display:none;">${escapeHtml(chapter.content)}</textarea>
     </div>
-    <div class="btn-row"><button class="btn btn-ghost" id="editor-close-btn">Cerrar</button><span class="muted" style="align-self:center;" id="editor-wc">${wordCount(chapter.content)} palabras</span></div>`);
+    <div class="btn-row"><button class="btn btn-primary" id="editor-mode-toggle">✏️ Editar texto</button><button class="btn btn-ghost" id="editor-close-btn">Cerrar</button><span class="muted" style="align-self:center;" id="editor-wc">${wordCount(chapter.content)} palabras</span></div>`);
   document.getElementById('editor-content').addEventListener('input', (e) => { document.getElementById('editor-wc').textContent = wordCount(e.target.value) + ' palabras'; document.getElementById('editor-save-badge').textContent = 'Guardando…'; autosave(e.target.value); });
+  // La edición conserva Markdown como texto original; lectura lo presenta con formato.
+  document.getElementById('editor-mode-toggle').addEventListener('click', (e) => {
+    const source = document.getElementById('editor-content');
+    const preview = document.getElementById('editor-reading');
+    const toEdit = source.style.display === 'none';
+    source.style.display = toEdit ? 'block' : 'none';
+    preview.style.display = toEdit ? 'none' : 'block';
+    if (!toEdit) preview.innerHTML = renderManuscript(source.value);
+    e.currentTarget.textContent = toEdit ? '📖 Vista de lectura' : '✏️ Editar texto';
+    if (toEdit) source.focus();
+  });
   document.getElementById('editor-title').addEventListener('change', async (e) => { const fresh = await db.get('chapters', id); fresh.title = e.target.value.trim() || fresh.title; await db.put('chapters', fresh); bus.emit('chapters-changed'); });
   document.getElementById('editor-close-btn').addEventListener('click', closeModal);
 }
