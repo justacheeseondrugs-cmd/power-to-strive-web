@@ -1,0 +1,15 @@
+{
+  "name": "Power to Strive Studio",
+  "short_name": "PtS Studio",
+  "description": "Estudio personal de escritura de fanfiction largo asistido por IA.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fbeaec",
+  "theme_color": "#b56576",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
