@@ -11,6 +11,20 @@ export function escapeHtml(str) {
   }[c]));
 }
 
+// Vista de lectura segura: convierte énfasis Markdown en formato tipográfico
+// sin interpretar HTML que pueda aparecer dentro del manuscrito.
+// La versión original con asteriscos se conserva intacta para seguir editándola.
+export function renderManuscript(text) {
+  const safe = escapeHtml(String(text ?? '').replace(/\r\n?/g, '\n'));
+  const formatted = safe
+    .replace(/\*\*\*([^\n*]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*([^\n*]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^\n*]+?)\*/g, '<em>$1</em>');
+  return formatted.split(/\n[\t ]*\n+/).map((paragraph) =>
+    '<p>' + paragraph.replace(/\n/g, '<br>') + '</p>'
+  ).join('');
+}
+
 export function toast(message, { error = false, ms = 3600 } = {}) {
   let wrap = document.getElementById('toast-wrap');
   if (!wrap) {
