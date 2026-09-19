@@ -50,8 +50,20 @@ export async function generateContinuityMemory(chapter) {
   const result = await provider.generate({ systemPrompt, userPrompt, maxOutputTokens: 900, temperature: 0.3 });
   if (!result.ok || isLikelyInvalidProse(result.text)) return { ok: false, error: result.errorMessage || 'No se pudo generar la memoria de continuidad.' };
   const fields = parseMemoryResponse(result.text);
-  const entry = { chapterId: chapter.id, chapterTitle: chapter.title, ...fields, createdAt: new Date().toISOString() };
+  if (!Object.values(fields).some((value) => String(value || '').trim())) {
+    return { ok: false, error: 'La IA no devolvió un resumen de continuidad reconocible. No se ha guardado una memoria vacía.' };
+  }
+  // Rehacer una memoria sustituye la anterior del MISMO capítulo, sin duplicarla.
+  const previous = await db.getByIndex('memoryEntries', 'by_chapter', chapter.id);
+  const entry = {
+    id: previous[0]?.id || db.uid(),
+    chapterId: chapter.id,
+    chapterTitle: chapter.title,
+    ...fields,
+    createdAt: new Date().toISOString(),
+  };
   const saved = await db.put('memoryEntries', entry);
+  for (const duplicate of previous.slice(1)) await db.del('memoryEntries', duplicate.id);
   return { ok: true, entry: saved };
 }
 
