@@ -75,7 +75,7 @@ async function getByIndex(storeName, indexName, value) {
   const store = await tx(storeName);
   return new Promise((resolve, reject) => {
     const req = store.index(indexName).getAll(value);
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => resolve((req.result || []).filter((record) => belongs(storeName,record)));
     req.onerror = () => reject(req.error);
   });
 }
