@@ -16,6 +16,8 @@ import { getRelevantChunks } from './retrieval.js';
 import { wordCount } from './utils.js';
 
 const DEFAULT_BLOCK_WORDS = 900;
+const STORY_CONTEXT_CHAR_CAP = 55000; // Hasta aproximadamente 7k palabras.
+
 
 export async function getActiveGenerationState() {
   const all = await db.getAll('generationState');
@@ -23,7 +25,7 @@ export async function getActiveGenerationState() {
     .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))[0] || null;
 }
 
-export async function startOrResumeGeneration({ chapterId, chapterTitle, instructions, targetWords, onProgress, shouldStop }) {
+export async function startOrResumeGeneration({ chapterId, chapterTitle, instructions, targetWords, requiredEnding = '', onProgress, shouldStop }) {
   let state = await db.get('generationState', chapterId);
   if (!state) {
     state = {
@@ -32,6 +34,7 @@ export async function startOrResumeGeneration({ chapterId, chapterTitle, instruc
       chapterTitle,
       instructions,
       targetWords,
+      requiredEnding,
       accumulatedText: '',
       wordsSoFar: 0,
       blocksDone: 0,
@@ -80,7 +83,27 @@ export async function runGenerationLoop(state, onProgress, shouldStop) {
     const queryText = [state.instructions, memoryEntries.slice(-2).map((m) => m.events).join(' ')].join(' ');
     const retrievedChunks = getRelevantChunks(documents, allChunks, queryText, { context: 'chapter_generation' });
 
-    const recentExcerpt = state.accumulatedText ? state.accumulatedText.slice(-1400) : '';
+    // No cortar el texto anterior a 1.400 caracteres: cada llamada debe ver
+    // lo escrito en este mismo capítulo para no reiniciar escenas ya narradas.
+    const chapterSoFar = state.accumulatedText.slice(-STORY_CONTEXT_CHAR_CAP);
+    const progress = state.wordsSoFar / Math.max(state.targetWords, 1);
+    const narrativePosition = isFirstBlock
+      ? 'FIRST BLOCK: establish the initial scene; do not rush to the climax.'
+      : isLastStretch || progress >= .82
+        ? 'FINAL STRETCH: stop expanding the setup. Move directly toward the author-requested final scene and execute it fully. Close immediately after the specified cliffhanger.'
+        : progress >= .60
+          ? 'LATE MIDDLE: complete the ongoing conversation and make tangible progress toward the closing scene. No new subplot, character introductions or recaps.'
+          : 'MIDDLE: continue from the precise last action and develop the NEXT unique event. Never replay a previous arrival, conversation or scream.';
+
+    const extraGuidance = [
+      'This request is ONE continuous chapter, NOT a fresh chapter per API call. All events in CHAPTER_SO_FAR have ALREADY HAPPENED. Return ONLY the next new prose, never a repeat or rephrasing.',
+      'In reaction-room fiction, weave the watchers into the events throughout: allow spontaneous dialogue and interaction, not separate rounds of symbolic commentary.',
+      'References contain background, not a new scene plan. Do not introduce unrelated characters, places or plotlines just because a reference mentions them. The author instructions and chapter-so-far control the current episode.',
+      'Word count is a flexible target, not a reason to end before the author-requested final event. Pace the setup to leave time for the entire climax and cliffhanger.',
+      narrativePosition,
+      state.requiredEnding ? 'MANDATORY FINAL SCENE / LAST IMAGE: ' + state.requiredEnding + ' Complete the entire event before ending; do not stop at the first distant hint of it.' : '',
+      isFirstBlock ? 'Write the FIRST approximately ' + thisBlockTarget + ' words of "' + state.chapterTitle + '". Do not end the chapter in this block.' : 'Write ONLY the NEXT approximately ' + thisBlockTarget + ' words from the last sentence. ' + (isLastStretch ? 'This is the final scene, not another setup.' : 'Keep moving toward the specified ending.'),
+    ].filter(Boolean).join('\n\n');
 
     const systemPrompt = assembleSystemPrompt({
       lockedFacts,
@@ -88,24 +111,30 @@ export async function runGenerationLoop(state, onProgress, shouldStop) {
       characters,
       memoryEntries,
       canonNotes,
-      recentChapterExcerpt: recentExcerpt,
+      recentChapterExcerpt: '',
       retrievedChunks,
-      extraGuidance: isFirstBlock
-        ? `Este es el INICIO del capítulo "${state.chapterTitle}". Objetivo total del capítulo: ~${state.targetWords} palabras, generado en bloques. Escribe ahora el primer bloque de aproximadamente ${thisBlockTarget} palabras. No concluyas el capítulo todavía si quedan más palabras por escribir.`
-        : `Continúa el capítulo EXACTAMENTE donde quedó el fragmento anterior (mostrado arriba), sin repetir texto ni resumir lo ya escrito. Escribe el siguiente bloque de aproximadamente ${thisBlockTarget} palabras.` +
-          (isLastStretch ? ' Este es el ÚLTIMO bloque: dale un cierre de escena satisfactorio dentro de esta extensión.' : ' Aún no cierres el capítulo: quedan más bloques después de este.'),
+      extraGuidance,
     });
 
     const userPrompt = isFirstBlock
-      ? `Escribe el primer bloque del capítulo siguiendo las instrucciones y el canon indicados en el sistema.`
-      : `Continúa la narración desde donde terminó el fragmento anterior. No repitas lo ya narrado.`;
+      ? 'BEGIN CHAPTER. Follow the author scene order and write ONLY the opening block as English novel prose.'
+      : [
+          'EXACT CHAPTER ALREADY WRITTEN. Do not rewrite, summarize, reproduce or restart any part:',
+          '<CHAPTER_SO_FAR>',
+          chapterSoFar,
+          '</CHAPTER_SO_FAR>',
+          'The chapter currently has ' + state.wordsSoFar + ' of approximately ' + state.targetWords + ' words. Begin the NEXT paragraph after the final sentence above, with no heading and no recap.',
+          state.requiredEnding ? 'The author-required event to reach before ending is: ' + state.requiredEnding : '',
+          narrativePosition,
+          'Return ONLY new prose continuing from the final line of CHAPTER_SO_FAR.',
+        ].filter(Boolean).join('\n\n');
 
     onProgress?.({ phase: 'requesting', state });
 
     const result = await provider.generate({
       systemPrompt,
       userPrompt,
-      maxOutputTokens: Math.round(thisBlockTarget * 2.4) + 200,
+      maxOutputTokens: Math.round(thisBlockTarget * 3.6) + 700,
       temperature: 1.0,
     });
 
