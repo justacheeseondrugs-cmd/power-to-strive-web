@@ -16,6 +16,17 @@ const STORES = {
   generationState: 'id',
 };
 
+// Los proyectos comparten proveedor de IA, pero NUNCA capítulos ni referencias.
+// Los registros anteriores no llevan projectId: pertenecen a ORIGINAL y no se migran.
+const ORIGINAL_PROJECT = 'original';
+const SCOPED_STORES = new Set(['chapters','characters','documents','docChunks','memoryEntries','lockedFacts','canonNotes','generationState']);
+const ACTIVE_KEY = 'pts_active_project_v1';
+export function getActiveProjectId() { return localStorage.getItem(ACTIVE_KEY) || ORIGINAL_PROJECT; }
+export function setActiveProjectId(id) { localStorage.setItem(ACTIVE_KEY, id || ORIGINAL_PROJECT); }
+function belongs(store, value) {
+  return !SCOPED_STORES.has(store) || !!value && (value.projectId || ORIGINAL_PROJECT) === getActiveProjectId();
+}
+
 let dbPromise = null;
 
 function openDb() {
@@ -46,13 +57,18 @@ function uid() {
   return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
 }
 
-async function getAll(storeName) {
+async function rawGetAll(storeName) {
   const store = await tx(storeName);
   return new Promise((resolve, reject) => {
     const req = store.getAll();
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
+}
+
+async function getAll(storeName) {
+  const records = await rawGetAll(storeName);
+  return SCOPED_STORES.has(storeName) ? records.filter((record) => belongs(storeName,record)) : records;
 }
 
 async function getByIndex(storeName, indexName, value) {
@@ -68,12 +84,16 @@ async function get(storeName, id) {
   const store = await tx(storeName);
   return new Promise((resolve, reject) => {
     const req = store.get(id);
-    req.onsuccess = () => resolve(req.result || null);
+    req.onsuccess = () => resolve(belongs(storeName,req.result) ? req.result : null);
     req.onerror = () => reject(req.error);
   });
 }
 
 async function put(storeName, obj) {
+  if (SCOPED_STORES.has(storeName)) {
+    if (obj.projectId && obj.projectId !== getActiveProjectId()) throw new Error('Este registro pertenece a otra historia.');
+    if (!obj.projectId) obj.projectId = getActiveProjectId();
+  }
   if (!obj.id) obj.id = uid();
   const store = await tx(storeName, 'readwrite');
   return new Promise((resolve, reject) => {
@@ -84,6 +104,7 @@ async function put(storeName, obj) {
 }
 
 async function del(storeName, id) {
+  if (SCOPED_STORES.has(storeName) && !(await get(storeName,id))) return false;
   const store = await tx(storeName, 'readwrite');
   return new Promise((resolve, reject) => {
     const req = store.delete(id);
@@ -105,7 +126,7 @@ async function clearStore(storeName) {
 async function exportAll() {
   const dump = {};
   for (const name of Object.keys(STORES)) {
-    dump[name] = await getAll(name);
+    dump[name] = await rawGetAll(name);
   }
   dump.__meta = { app: 'pts-studio', exportedAt: new Date().toISOString(), version: DB_VERSION };
   return dump;
@@ -123,4 +144,4 @@ async function importAll(dump, { merge = false } = {}) {
   return true;
 }
 
-export const db = { openDb, getAll, getByIndex, get, put, del, clearStore, uid, exportAll, importAll };
+export const db = { openDb, getAll, getByIndex, get, put, del, clearStore, uid, exportAll, importAll, getActiveProjectId, setActiveProjectId };
