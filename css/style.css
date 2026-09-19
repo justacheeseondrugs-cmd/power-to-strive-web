@@ -336,3 +336,17 @@ body[data-theme="dark"] .paper input[type=text]{
   border:0;
 }
 body .paper input[type=text]::placeholder{ color:var(--reader-ink);opacity:.7; }
+
+/* Local story workspace switcher and stepwise chapter preview. */
+.workspace-bar{max-width:900px;width:100%;margin:0 auto;padding:0 16px 7px;}
+.workspace-bar-inner{display:flex;align-items:center;flex-wrap:wrap;gap:8px;}
+.workspace-bar label{font-size:12px;font-weight:700;color:var(--oldrose-700);}
+.workspace-bar select{flex:1;min-width:135px;max-width:420px;font-size:13px;padding:7px 9px;}
+.workspace-current{display:block;font-size:11px;color:var(--paper-ink-soft);margin-top:4px;}
+.generation-review{border:1px solid var(--oldrose-400);background:var(--blush-50);border-radius:var(--radius-lg);padding:16px;margin:12px 0;box-shadow:var(--shadow);}
+.generation-review h3{color:var(--oldrose-700);margin:0 0 8px;}
+.generation-review textarea{min-height:200px;max-height:400px;font-family:var(--reader-font);font-size:var(--reader-size);line-height:var(--reader-leading);background:var(--reader-bg);color:var(--reader-ink);}
+.generation-review .review-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.generation-review .review-actions button{flex:1 1 160px;}
+.scene-guide{font-size:12px;line-height:1.5;margin:7px 0;color:var(--paper-ink-soft);}
+#write-form-card .planning-fields textarea{min-height:85px;}
