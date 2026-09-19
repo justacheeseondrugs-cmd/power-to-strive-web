@@ -1,5 +1,5 @@
 import { db } from './db.js';
-import { renderWrite } from './ui/write.js';
+import { renderWrite } from './ui/write.js?v=20260919-story-continuity-1';
 import { renderChapters } from './ui/chapters.js?v=20260919-memory-button-2';
 import { renderCharacters } from './ui/characters.js';
 import { renderDocuments } from './ui/documents.js';
