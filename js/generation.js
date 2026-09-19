@@ -21,11 +21,11 @@ const STORY_CONTEXT_CHAR_CAP = 55000; // Hasta aproximadamente 7k palabras.
 
 export async function getActiveGenerationState() {
   const all = await db.getAll('generationState');
-  return all.filter((g) => g.status === 'in_progress' || g.status?.startsWith('paused_'))
+  return all.filter((g) => ['in_progress','awaiting_review','review_target_reached'].includes(g.status) || g.status?.startsWith('paused_'))
     .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))[0] || null;
 }
 
-export async function startOrResumeGeneration({ chapterId, chapterTitle, instructions, targetWords, requiredEnding = '', onProgress, shouldStop }) {
+export async function startOrResumeGeneration({ chapterId, chapterTitle, instructions, targetWords, requiredEnding = '', scenePlan = [], sceneIndex, allowedCast = '', forbiddenCast = '', documentIds = [], reactionMode = true, onProgress, shouldStop }) {
   let state = await db.get('generationState', chapterId);
   if (!state) {
     state = {
@@ -35,6 +35,13 @@ export async function startOrResumeGeneration({ chapterId, chapterTitle, instruc
       instructions,
       targetWords,
       requiredEnding,
+      scenePlan,
+      sceneIndex: 0,
+      allowedCast,
+      forbiddenCast,
+      documentIds,
+      reactionMode,
+      pendingText: '',
       accumulatedText: '',
       wordsSoFar: 0,
       blocksDone: 0,
@@ -45,8 +52,10 @@ export async function startOrResumeGeneration({ chapterId, chapterTitle, instruc
     };
     await db.put('generationState', state);
   } else {
+    if (state.status === 'awaiting_review') return state;
     state.status = 'in_progress';
     state.instructions = instructions || state.instructions;
+    if (Number.isInteger(sceneIndex)) state.sceneIndex = sceneIndex;
     await db.put('generationState', state);
   }
 
@@ -58,7 +67,7 @@ export async function runGenerationLoop(state, onProgress, shouldStop) {
   const blockWords = settings.blockWordSize || DEFAULT_BLOCK_WORDS;
   const provider = getProvider(settings);
 
-  const [lockedFacts, characters, memoryEntries, canonNotes, documents, allChunks] = await Promise.all([
+  const [lockedFacts, allCharacters, allMemoryEntries, canonNotes, allDocuments, allChunks] = await Promise.all([
     db.getAll('lockedFacts'),
     db.getAll('characters'),
     db.getAll('memoryEntries'),
@@ -67,21 +76,30 @@ export async function runGenerationLoop(state, onProgress, shouldStop) {
     db.getAll('docChunks'),
   ]);
 
-  while (state.wordsSoFar < state.targetWords) {
-    if (shouldStop && shouldStop()) {
-      state.status = 'paused_manual';
-      state.updatedAt = new Date().toISOString();
-      await db.put('generationState', state);
-      onProgress?.({ phase: 'stopped', state });
-      return state;
-    }
-    const remaining = state.targetWords - state.wordsSoFar;
-    const thisBlockTarget = Math.min(blockWords, remaining);
+  // A single API call produces one PENDING block. Never auto-append it:
+  // the author must approve or edit each block before a follow-up API request.
+  {
+    const remaining = Math.max(1,state.targetWords - state.wordsSoFar);
+    const thisBlockTarget = Math.min(blockWords, Math.max(remaining, Math.round(blockWords * .65)));
     const isFirstBlock = state.blocksDone === 0;
     const isLastStretch = remaining <= blockWords;
 
-    const queryText = [state.instructions, memoryEntries.slice(-2).map((m) => m.events).join(' ')].join(' ');
-    const retrievedChunks = getRelevantChunks(documents, allChunks, queryText, { context: 'chapter_generation' });
+    const permittedNames = (state.allowedCast || '').split(/[,;\n]/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+    const characters = allCharacters.filter((c) => permittedNames.includes(c.name.trim().toLowerCase()) && c.active !== false);
+    const memoryEntries = allMemoryEntries.sort((a,b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+      .filter((m) => m.chapterId !== state.chapterId);
+    const documents = allDocuments.filter((d) =>
+      Array.isArray(state.documentIds) ? state.documentIds.includes(d.id) : true);
+    const queryText = [state.instructions, state.allowedCast, memoryEntries.slice(-2).map((m) => m.events).join(' ')].join(' ');
+    const safeDocuments = documents.filter((d) => d.type !== 'STYLE_ONLY');
+    const retrievedChunks = getRelevantChunks(safeDocuments, allChunks, queryText, { context: 'chapter_generation' });
+    // STYLE_ONLY source prose may contain foreign plot/character names. Never
+    // send that source text into a scene-generation request.
+    for (const doc of documents.filter((d) => d.type === 'STYLE_ONLY' && d.active !== false)) {
+      retrievedChunks.push({ documentId:doc.id, document:doc,
+        text:'Style notes supplied by author: '+(doc.useOnlyFor || 'novel-like rhythm and narration')+
+        '. Do not import any plot, character, relationship, dialogue or event from this file.' });
+    }
 
     // No cortar el texto anterior a 1.400 caracteres: cada llamada debe ver
     // lo escrito en este mismo capítulo para no reiniciar escenas ya narradas.
@@ -97,9 +115,12 @@ export async function runGenerationLoop(state, onProgress, shouldStop) {
 
     const extraGuidance = [
       'This request is ONE continuous chapter, NOT a fresh chapter per API call. All events in CHAPTER_SO_FAR have ALREADY HAPPENED. Return ONLY the next new prose, never a repeat or rephrasing.',
-      'In reaction-room fiction, weave the watchers into the events throughout: allow spontaneous dialogue and interaction, not separate rounds of symbolic commentary.',
+      state.reactionMode ? 'REACTION ROOM: write TWO living scenes unfolding together, not a separated episode followed by a roster of comments. Interleave timely viewers reactions at scene beats and within onscreen action. Let viewers respond to EACH OTHER across several turns, interrupt, argue, joke or go silent; not every viewer needs to speak. Every reaction changes a conversation or action. Do not use formulaic introduction phrases like Meanwhile in the reaction room, or literary-critic commentary about symbolism.' : 'Write only the narrative requested by the author.',
       'References contain background, not a new scene plan. Do not introduce unrelated characters, places or plotlines just because a reference mentions them. The author instructions and chapter-so-far control the current episode.',
       'Word count is a flexible target, not a reason to end before the author-requested final event. Pace the setup to leave time for the entire climax and cliffhanger.',
+      'ALLOWED NAMED CAST FOR THIS CHAPTER: '+(state.allowedCast || '(none; ask the author for a cast)')+'. Do not introduce ANY other named person from a reference or another AU. Unnamed extras may appear only when the chapter instruction requires them.',
+      state.forbiddenCast ? 'EXPLICITLY FORBIDDEN PEOPLE/CHARACTERS: '+state.forbiddenCast+'. These names must never appear in the NEW prose.' : '',
+      Array.isArray(state.scenePlan) && state.scenePlan.length ? 'ORDERED STORY PLAN (each beat happens once):\n'+state.scenePlan.map((beat,i) => (i+1)+'. '+beat).join('\n')+'\nFOCUS FOR THIS BLOCK: scene '+(Math.min(state.scenePlan.length-1,Math.max(0,state.sceneIndex || 0))+1)+': '+state.scenePlan[Math.min(state.scenePlan.length-1,Math.max(0,state.sceneIndex || 0))]+'. Progress from here toward the later scenes, never jump backward.' : '',
       narrativePosition,
       state.requiredEnding ? 'MANDATORY FINAL SCENE / LAST IMAGE: ' + state.requiredEnding + ' Complete the entire event before ending; do not stop at the first distant hint of it.' : '',
       isFirstBlock ? 'Write the FIRST approximately ' + thisBlockTarget + ' words of "' + state.chapterTitle + '". Do not end the chapter in this block.' : 'Write ONLY the NEXT approximately ' + thisBlockTarget + ' words from the last sentence. ' + (isLastStretch ? 'This is the final scene, not another setup.' : 'Keep moving toward the specified ending.'),
@@ -155,34 +176,73 @@ export async function runGenerationLoop(state, onProgress, shouldStop) {
       return state;
     }
 
-    // Nunca se guarda nada que no sea prosa válida (ya filtrado por el proveedor).
-    const separator = state.accumulatedText ? '\n\n' : '';
-    state.accumulatedText += separator + result.text.trim();
-    state.wordsSoFar = wordCount(state.accumulatedText);
-    state.blocksDone += 1;
-    state.status = 'in_progress';
-    state.lastError = null;
-    state.updatedAt = new Date().toISOString();
-
-    // Checkpoint: se guarda INMEDIATAMENTE tras un bloque válido.
-    await db.put('generationState', state);
-
-    // Reflejar también en el capítulo en vivo, para que "Escribir" y "Capítulos" siempre coincidan.
-    const chapter = await db.get('chapters', state.chapterId);
-    if (chapter) {
-      chapter.content = state.accumulatedText;
-      chapter.wordCount = state.wordsSoFar;
-      chapter.updatedAt = new Date().toISOString();
-      await db.put('chapters', chapter);
+    // Rechazar de forma verificable nombres que el autor haya prohibido.
+    const forbidden = (state.forbiddenCast || '').split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
+    const escaped = (name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const leaks = forbidden.filter((name) => new RegExp('\\b'+escaped(name)+'\\b','i').test(result.text));
+    if (leaks.length) {
+      state.status = 'paused_error';
+      state.lastError = {type:'cast',message:'El bloque incluyó personajes prohibidos: '+leaks.join(', ')+'. No se añadió al capítulo; cambia las instrucciones y vuelve a intentarlo.',at:new Date().toISOString()};
+      state.updatedAt = new Date().toISOString();
+      await db.put('generationState',state);
+      onProgress?.({phase:'error',state});
+      return state;
     }
 
-    onProgress?.({ phase: 'block_done', state });
+    // Guardar el bloque candidato por separado, para leer y EDITAR antes de
+    // que se incorpore a la historia. Solo entonces podrá continuar el modelo.
+    state.pendingText = result.text.trim();
+    state.status = 'awaiting_review';
+    state.lastError = null;
+    state.updatedAt = new Date().toISOString();
+    await db.put('generationState',state);
+    onProgress?.({ phase:'block_ready',state });
+    return state;
   }
 
+  return state;
+}
+
+export async function approvePendingBlock(chapterId, editedText) {
+  const state = await db.get('generationState',chapterId);
+  if (!state || state.status !== 'awaiting_review') throw new Error('No hay un bloque pendiente de aprobación.');
+  const content = String(editedText || '').trim();
+  if (wordCount(content) < 15) throw new Error('El bloque es demasiado corto; revísalo antes de guardarlo.');
+  state.accumulatedText += (state.accumulatedText ? '\\n\\n' : '') + content;
+  state.wordsSoFar = wordCount(state.accumulatedText);
+  state.blocksDone += 1;
+  state.pendingText = '';
+  state.status = state.wordsSoFar >= state.targetWords ? 'review_target_reached' : 'paused_review';
+  state.updatedAt = new Date().toISOString();
+  await db.put('generationState',state);
+  const chapter = await db.get('chapters',chapterId);
+  if (chapter) {
+    chapter.content = state.accumulatedText;
+    chapter.wordCount = state.wordsSoFar;
+    chapter.updatedAt = state.updatedAt;
+    await db.put('chapters',chapter);
+  }
+  return state;
+}
+
+export async function rejectPendingBlock(chapterId) {
+  const state = await db.get('generationState',chapterId);
+  if (!state || state.status !== 'awaiting_review') return null;
+  state.pendingText = '';
+  state.status = 'paused_review';
+  state.updatedAt = new Date().toISOString();
+  await db.put('generationState',state);
+  return state;
+}
+
+export async function finishReviewedChapter(chapterId) {
+  const state = await db.get('generationState',chapterId);
+  if (!state || !state.wordsSoFar || state.pendingText) throw new Error('Primero aprueba el bloque pendiente.');
   state.status = 'completed';
   state.updatedAt = new Date().toISOString();
-  await db.put('generationState', state);
-  onProgress?.({ phase: 'completed', state });
+  await db.put('generationState',state);
+  const chapter = await db.get('chapters',chapterId);
+  if (chapter) { chapter.status='finished'; chapter.updatedAt=state.updatedAt; await db.put('chapters',chapter); }
   return state;
 }
 
