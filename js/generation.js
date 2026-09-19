@@ -19,7 +19,8 @@ const DEFAULT_BLOCK_WORDS = 900;
 
 export async function getActiveGenerationState() {
   const all = await db.getAll('generationState');
-  return all.find((g) => g.status === 'in_progress' || g.status === 'paused_quota' || g.status === 'paused_network') || null;
+  return all.filter((g) => g.status === 'in_progress' || g.status?.startsWith('paused_'))
+    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))[0] || null;
 }
 
 export async function startOrResumeGeneration({ chapterId, chapterTitle, instructions, targetWords, onProgress, shouldStop }) {
@@ -114,6 +115,8 @@ export async function runGenerationLoop(state, onProgress, shouldStop) {
         state.status = 'paused_quota';
       } else if (result.errorType === 'network') {
         state.status = 'paused_network';
+      } else if (result.errorType === 'busy') {
+        state.status = 'paused_busy';
       } else {
         state.status = 'paused_error';
       }
