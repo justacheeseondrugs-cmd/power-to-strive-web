@@ -47,7 +47,10 @@ export async function generateContinuityMemory(chapter) {
     extraGuidance: `Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto fuera del JSON) con estas claves exactas: EVENTS, RELATIONSHIP_CHANGES, NEW_FACTS, WHO_KNOWS_WHAT, PHYSICAL_STATE, CURRENT_LOCATION_TIME, OPEN_THREADS. Cada valor es un string breve (1-4 frases). Si una categoría no aplica en este capítulo, usa un string vacío.`,
   });
   const userPrompt = `CAPÍTULO A ANALIZAR ("${chapter.title}"):\n\n${chapter.content}`;
-  const result = await provider.generate({ systemPrompt, userPrompt, maxOutputTokens: 900, temperature: 0.3 });
+  // En modelos de razonamiento, max_completion_tokens incluye también los
+  // tokens de razonamiento; 900 puede agotarse antes de devolver el JSON.
+  const reasoningModel = /^(?:gpt-5(?:[.-]|$)|o[134](?:[.-]|$))/i.test(provider.config?.model || '');
+  const result = await provider.generate({ systemPrompt, userPrompt, maxOutputTokens: reasoningModel ? 4800 : 1200, temperature: 0.3 });
   if (!result.ok || isLikelyInvalidProse(result.text)) return { ok: false, error: result.errorMessage || 'No se pudo generar la memoria de continuidad.' };
   const fields = parseMemoryResponse(result.text);
   if (!Object.values(fields).some((value) => String(value || '').trim())) {
