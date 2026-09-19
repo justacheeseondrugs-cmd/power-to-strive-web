@@ -327,3 +327,12 @@ body .paper.appearance-preview p:last-child{ margin-bottom:0; }
 @media(prefers-reduced-motion:reduce){
   .view,.tab-btn,.progress-fill,body{ animation:none;transition:none; }
 }
+
+/* Chapter title should match the chosen paper even with the dark app shell. */
+body .paper input[type=text],
+body[data-theme="dark"] .paper input[type=text]{
+  color:var(--reader-ink);
+  background:transparent;
+  border:0;
+}
+body .paper input[type=text]::placeholder{ color:var(--reader-ink);opacity:.7; }
