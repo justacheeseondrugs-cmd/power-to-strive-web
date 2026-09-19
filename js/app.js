@@ -6,6 +6,7 @@ import { renderDocuments } from './ui/documents.js';
 import { renderMemory } from './ui/memory.js';
 import { renderSettings } from './ui/settings.js';
 import { bus } from './utils.js';
+import { initAppearance } from './ui/appearance.js';
 
 const VIEWS = { write: renderWrite, chapters: renderChapters, characters: renderCharacters, documents: renderDocuments, memory: renderMemory, settings: renderSettings };
 async function seedDefaults() {
@@ -21,4 +22,5 @@ function switchView(name) { document.querySelectorAll('.view').forEach((v) => v.
 function initNav() { document.getElementById('tabbar').addEventListener('click', (e) => { const btn = e.target.closest('.tab-btn'); if (!btn) return; switchView(btn.dataset.view); }); bus.on('navigate', (name) => switchView(name)); }
 async function initServiceWorker() { if ('serviceWorker' in navigator) { try { await navigator.serviceWorker.register('sw.js'); } catch { } } }
 async function boot() { await db.openDb(); await seedDefaults(); initNav(); initServiceWorker(); const last = localStorage.getItem('pts_last_view') || 'write'; switchView(VIEWS[last] ? last : 'write'); }
+initAppearance();
 boot();
