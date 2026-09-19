@@ -145,6 +145,13 @@ input:focus, select:focus, textarea:focus{ outline:2px solid var(--oldrose-400);
   white-space:pre-wrap;
 }
 .paper textarea.paper-text:focus{ outline:none; }
+/* Preview de manuscrito: formato de lectura, sin mostrar asteriscos Markdown. */
+.paper .manuscript-rendered { white-space:normal; min-height:0; overflow-wrap:anywhere; }
+.paper .manuscript-rendered p { margin:0 0 0.85em; }
+.paper .manuscript-rendered p:last-child { margin-bottom:0; }
+.paper .manuscript-rendered strong { font-weight:700; }
+.paper .manuscript-rendered em { font-style:italic; }
+
 .paper-title{ font-size:24px; font-weight:600; margin-bottom:6px; color:var(--paper-ink); }
 .paper hr{ border:none; border-top:1px dashed #d9c497; margin:14px 0; }
 
