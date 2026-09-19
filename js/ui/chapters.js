@@ -1,6 +1,6 @@
 import { db } from '../db.js';
 import { escapeHtml, renderManuscript, toast, fmtDate, debounce, wordCount, openModal, closeModal, bus } from '../utils.js';
-import { rewriteChapter } from '../memoryEngine.js';
+import { rewriteChapter, generateContinuityMemory } from '../memoryEngine.js';
 
 bus.on('chapters-changed', () => {
   const root = document.getElementById('view-chapters');
@@ -26,6 +26,7 @@ export async function renderChapters(root) {
       <div class="btn-row">
         <button class="btn btn-ghost btn-sm act-open">Abrir/editar</button>
         <button class="btn btn-ghost btn-sm act-rewrite">Reescribir</button>
+        <button class="btn btn-ghost btn-sm act-memory">🧠 Crear/actualizar memoria</button>
         <button class="btn btn-ghost btn-sm act-duplicate">Duplicar</button>
         <button class="btn btn-danger btn-sm act-delete">Eliminar</button>
       </div>
@@ -34,9 +35,30 @@ export async function renderChapters(root) {
     const id = el.dataset.id;
     el.querySelector('.act-open').addEventListener('click', () => openChapterEditor(id));
     el.querySelector('.act-rewrite').addEventListener('click', () => openRewriteModal(id));
+    el.querySelector('.act-memory').addEventListener('click', () => createChapterMemory(id, el));
     el.querySelector('.act-duplicate').addEventListener('click', () => duplicateChapter(id));
     el.querySelector('.act-delete').addEventListener('click', () => deleteChapter(id, root));
   });
+}
+
+async function createChapterMemory(id, card) {
+  const chapter = await db.get('chapters', id);
+  if (!chapter?.content?.trim()) return toast('Este capítulo no tiene texto para resumir.', { error:true });
+  const gen = await db.get('generationState', id);
+  if (gen && gen.status !== 'completed' && gen.status !== 'discarded') {
+    if (!confirm('Este capítulo tiene un borrador de generación sin terminar. ¿Crear una memoria provisional con lo escrito hasta ahora?')) return;
+  }
+  const button = card.querySelector('.act-memory');
+  if (button) { button.disabled = true; button.textContent = '🧠 Preparando memoria…'; }
+  try {
+    const result = await generateContinuityMemory(chapter);
+    if (result.ok) toast('Memoria de continuidad guardada. Revísala en Memoria → Continuidad.', { ms:6000 });
+    else toast('No se guardó memoria: ' + result.error, { error:true, ms:10000 });
+  } catch (e) {
+    toast('No se pudo guardar la memoria: ' + e.message, { error:true, ms:10000 });
+  } finally {
+    if (button) { button.disabled = false; button.textContent = '🧠 Crear/actualizar memoria'; }
+  }
 }
 
 async function openChapterEditor(id) {
@@ -93,5 +115,11 @@ async function duplicateChapter(id) {
 }
 
 async function deleteChapter(id, root) {
-  if (!confirm('¿Eliminar este capítulo definitivamente? Esta acción no se puede deshacer.')) return; await db.del('chapters', id); await db.del('generationState', id).catch(() => {}); toast('Capítulo eliminado.'); renderChapters(root);
+  if (!confirm('¿Eliminar definitivamente este capítulo y su memoria de continuidad? Antes, exporta un backup si quieres conservarlo.')) return;
+  await db.del('chapters', id);
+  await db.del('generationState', id).catch(() => {});
+  const memories = await db.getByIndex('memoryEntries', 'by_chapter', id);
+  for (const memory of memories) await db.del('memoryEntries', memory.id);
+  toast('Capítulo y su memoria eliminados.');
+  renderChapters(root);
 }
