@@ -1,6 +1,6 @@
 import { db } from '../db.js';
 import { escapeHtml, renderManuscript, toast, wordCount } from '../utils.js';
-import { getActiveGenerationState, startOrResumeGeneration, discardGeneration } from '../generation.js';
+import { getActiveGenerationState, startOrResumeGeneration, discardGeneration } from '../generation.js?v=20260919-story-continuity-1';
 import { generateContinuityMemory } from '../memoryEngine.js';
 import { bus } from '../utils.js';
 
