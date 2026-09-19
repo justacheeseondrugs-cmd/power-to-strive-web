@@ -1,7 +1,7 @@
 // sw.js — cachea sólo el "shell" de la app (HTML/CSS/JS propios) para que
 // abra offline. Las llamadas a la API de IA siempre necesitan red y nunca
 // se cachean aquí.
-const CACHE = 'pts-studio-v2';
+const CACHE = 'pts-studio-v3';
 const SHELL = [
   './',
   './index.html',
@@ -17,6 +17,7 @@ const SHELL = [
   './js/providers/base.js',
   './js/providers/gemini.js',
   './js/providers/openai.js',
+  './js/providers/openrouter.js',
   './js/providers/index.js',
   './js/ui/write.js',
   './js/ui/chapters.js',
