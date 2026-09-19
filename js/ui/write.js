@@ -1,7 +1,7 @@
 import { db } from '../db.js';
 import { escapeHtml, renderManuscript, toast, bus } from '../utils.js';
-import { getActiveGenerationState, startOrResumeGeneration, discardGeneration, approvePendingBlock, rejectPendingBlock, finishReviewedChapter } from '../generation.js';
-import { generateContinuityMemory } from '../memoryEngine.js';
+import { getActiveGenerationState, startOrResumeGeneration, discardGeneration, approvePendingBlock, rejectPendingBlock, finishReviewedChapter } from '../generation.js?v=20260919-workspaces-v1';
+import { generateContinuityMemory } from '../memoryEngine.js?v=20260919-workspaces-v1';
 
 let isRunning = false;
 const lines = (t) => String(t || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
