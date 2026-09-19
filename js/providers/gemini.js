@@ -5,7 +5,7 @@ export class GeminiProvider extends AIProvider {
 
   async generate({ systemPrompt, userPrompt, maxOutputTokens = 2048, temperature = 1.0 }) {
     const apiKey = this.config.apiKey;
-    const model = this.config.model || 'gemini-2.0-flash';
+    const model = this.config.model || 'gemini-3.8-flash';
     if (!apiKey) {
       return { ok: false, text: null, errorType: 'auth', errorMessage: 'Falta la API key de Gemini en Ajustes.', raw: null };
     }
@@ -42,6 +42,9 @@ export class GeminiProvider extends AIProvider {
     if (!res.ok) {
       if (res.status === 429) {
         return { ok: false, text: null, errorType: 'quota', errorMessage: 'Gemini devolvió 429 (cuota/límite de tasa excedido). No reintentes automáticamente; espera y vuelve a intentar.', raw: data };
+      }
+      if (res.status === 503) {
+        return { ok: false, text: null, errorType: 'busy', errorMessage: 'Gemini devolvió HTTP 503: el modelo tiene alta demanda temporal. El borrador está guardado. Espera unos minutos y pulsa Reanudar; también puedes elegir otro modelo Flash disponible en Ajustes.', raw: data };
       }
       if (res.status === 401 || res.status === 403) {
         return { ok: false, text: null, errorType: 'auth', errorMessage: 'API key de Gemini inválida o sin permisos (HTTP ' + res.status + ').', raw: data };
