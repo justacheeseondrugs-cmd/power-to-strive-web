@@ -39,7 +39,10 @@ export async function generateContinuityMemory(chapter) {
   const [lockedFacts, characters, canonNotes, documents, allChunks] = await Promise.all([
     db.getAll('lockedFacts'), db.getAll('characters'), db.getAll('canonNotes'), db.getAll('documents'), db.getAll('docChunks'),
   ]);
-  const retrievedChunks = getRelevantChunks(documents, allChunks, chapter.content, { context: 'memory_summary' });
+  // La memoria DEBE resumir el manuscrito real, no historias de referencia.
+  // No enviar documentos STYLE_ONLY ni otros textos al extractor: así no se
+  // introducen personajes o sucesos ajenos en una continuidad aprobada.
+  const retrievedChunks = [];
   const systemPrompt = assembleSystemPrompt({
     lockedFacts,
     chapterInstructions: 'Analiza el capítulo completo proporcionado por el usuario y extrae, con precisión y sin inventar nada que no esté implícito en el texto, un resumen de continuidad estructurado.',
@@ -62,6 +65,7 @@ export async function generateContinuityMemory(chapter) {
     id: previous[0]?.id || db.uid(),
     chapterId: chapter.id,
     chapterTitle: chapter.title,
+    projectId: chapter.projectId || 'original',
     ...fields,
     createdAt: new Date().toISOString(),
   };
@@ -77,7 +81,7 @@ export async function rewriteChapter(chapter, rewriteInstructions) {
     db.getAll('lockedFacts'), db.getAll('characters'), db.getAll('memoryEntries'), db.getAll('canonNotes'), db.getAll('documents'), db.getAll('docChunks'),
   ]);
   const queryText = rewriteInstructions + ' ' + chapter.title;
-  const retrievedChunks = getRelevantChunks(documents, allChunks, queryText, { context: 'rewrite' });
+  const retrievedChunks = getRelevantChunks(documents.filter((d) => d.type !== 'STYLE_ONLY'), allChunks, queryText, { context: 'rewrite' });
   const systemPrompt = assembleSystemPrompt({
     lockedFacts,
     chapterInstructions: `Vas a REESCRIBIR un capítulo existente según instrucciones del autor. Instrucciones de reescritura: ${rewriteInstructions}`,
