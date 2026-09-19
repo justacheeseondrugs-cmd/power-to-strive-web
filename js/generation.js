@@ -25,7 +25,7 @@ export async function getActiveGenerationState() {
     .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))[0] || null;
 }
 
-export async function startOrResumeGeneration({ chapterId, chapterTitle, instructions, targetWords, requiredEnding = '', scenePlan = [], sceneIndex, allowedCast = '', forbiddenCast = '', documentIds = [], reactionMode = true, onProgress, shouldStop }) {
+export async function startOrResumeGeneration({ chapterId, chapterTitle, instructions, targetWords, requiredEnding = '', scenePlan = [], sceneIndex, allowedCast = '', forbiddenCast = '', documentIds = [], reactionMode = true, blockNotes = '', onProgress, shouldStop }) {
   let state = await db.get('generationState', chapterId);
   if (!state) {
     state = {
@@ -41,6 +41,7 @@ export async function startOrResumeGeneration({ chapterId, chapterTitle, instruc
       forbiddenCast,
       documentIds,
       reactionMode,
+      blockNotes,
       pendingText: '',
       accumulatedText: '',
       wordsSoFar: 0,
@@ -56,6 +57,7 @@ export async function startOrResumeGeneration({ chapterId, chapterTitle, instruc
     state.status = 'in_progress';
     state.instructions = instructions || state.instructions;
     if (Number.isInteger(sceneIndex)) state.sceneIndex = sceneIndex;
+    state.blockNotes = blockNotes || '';
     await db.put('generationState', state);
   }
 
@@ -121,6 +123,7 @@ export async function runGenerationLoop(state, onProgress, shouldStop) {
       'ALLOWED NAMED CAST FOR THIS CHAPTER: '+(state.allowedCast || '(none; ask the author for a cast)')+'. Do not introduce ANY other named person from a reference or another AU. Unnamed extras may appear only when the chapter instruction requires them.',
       state.forbiddenCast ? 'EXPLICITLY FORBIDDEN PEOPLE/CHARACTERS: '+state.forbiddenCast+'. These names must never appear in the NEW prose.' : '',
       Array.isArray(state.scenePlan) && state.scenePlan.length ? 'ORDERED STORY PLAN (each beat happens once):\n'+state.scenePlan.map((beat,i) => (i+1)+'. '+beat).join('\n')+'\nFOCUS FOR THIS BLOCK: scene '+(Math.min(state.scenePlan.length-1,Math.max(0,state.sceneIndex || 0))+1)+': '+state.scenePlan[Math.min(state.scenePlan.length-1,Math.max(0,state.sceneIndex || 0))]+'. Progress from here toward the later scenes, never jump backward.' : '',
+      state.blockNotes ? 'AUTHOR CORRECTION FOR THIS BLOCK (obey exactly, never repeat an earlier bad draft): '+state.blockNotes : '',
       narrativePosition,
       state.requiredEnding ? 'MANDATORY FINAL SCENE / LAST IMAGE: ' + state.requiredEnding + ' Complete the entire event before ending; do not stop at the first distant hint of it.' : '',
       isFirstBlock ? 'Write the FIRST approximately ' + thisBlockTarget + ' words of "' + state.chapterTitle + '". Do not end the chapter in this block.' : 'Write ONLY the NEXT approximately ' + thisBlockTarget + ' words from the last sentence. ' + (isLastStretch ? 'This is the final scene, not another setup.' : 'Keep moving toward the specified ending.'),
@@ -208,7 +211,7 @@ export async function approvePendingBlock(chapterId, editedText) {
   if (!state || state.status !== 'awaiting_review') throw new Error('No hay un bloque pendiente de aprobación.');
   const content = String(editedText || '').trim();
   if (wordCount(content) < 15) throw new Error('El bloque es demasiado corto; revísalo antes de guardarlo.');
-  state.accumulatedText += (state.accumulatedText ? '\\n\\n' : '') + content;
+  state.accumulatedText += (state.accumulatedText ? '\n\n' : '') + content;
   state.wordsSoFar = wordCount(state.accumulatedText);
   state.blocksDone += 1;
   state.pendingText = '';
