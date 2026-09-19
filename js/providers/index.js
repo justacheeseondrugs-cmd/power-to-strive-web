@@ -6,7 +6,7 @@
 // no necesita cambiar ni una línea.
 
 import { GeminiProvider } from './gemini.js';
-import { OpenAIProvider } from './openai.js';
+import { OpenAIProvider } from './openai.js?v=20260919-memoryfix-1';
 import { OpenRouterFreeProvider } from './openrouter.js';
 
 const REGISTRY = {
