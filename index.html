@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Power to Strive Studio</title>
+<meta name="theme-color" content="#b56576">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <header class="app-header">
+    <div class="brand-mark">P</div>
+    <div>
+      <div class="brand-title">Power to Strive Studio</div>
+      <div class="brand-sub">tu estudio personal de fanfiction largo</div>
+    </div>
+  </header>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tab-btn" data-view="write">✒️ Escribir</button>
+    <button class="tab-btn" data-view="chapters">📖 Capítulos</button>
+    <button class="tab-btn" data-view="characters">💗 Personajes</button>
+    <button class="tab-btn" data-view="documents">📚 Documentos</button>
+    <button class="tab-btn" data-view="memory">🧠 Memoria</button>
+    <button class="tab-btn" data-view="settings">⚙️ Ajustes</button>
+  </nav>
+
+  <main>
+    <section id="view-write" class="view"></section>
+    <section id="view-chapters" class="view"></section>
+    <section id="view-characters" class="view"></section>
+    <section id="view-documents" class="view"></section>
+    <section id="view-memory" class="view"></section>
+    <section id="view-settings" class="view"></section>
+  </main>
+
+  <footer class="app-footer">Power to Strive Studio · tus datos viven sólo en este navegador (IndexedDB)</footer>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
