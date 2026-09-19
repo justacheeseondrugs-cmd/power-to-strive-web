@@ -1,7 +1,7 @@
 // sw.js — cachea sólo el "shell" de la app (HTML/CSS/JS propios) para que
 // abra offline. Las llamadas a la API de IA siempre necesitan red y nunca
 // se cachean aquí.
-const CACHE = 'pts-studio-v1';
+const CACHE = 'pts-studio-v2';
 const SHELL = [
   './',
   './index.html',
@@ -46,7 +46,15 @@ self.addEventListener('fetch', (event) => {
   // Nunca interceptar llamadas a APIs externas de IA.
   if (url.origin !== self.location.origin) return;
 
+  // Actualizaciones visibles: intentar la red primero; si no hay red, usar shell guardado.
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request).catch(() => cached))
+    fetch(event.request).then((response) => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE).then((cache) => cache.put(event.request, copy)).catch(() => {});
+      }
+      return response;
+    }).catch(async () => (await caches.match(event.request)) || Response.error())
   );
 });
