@@ -35,7 +35,19 @@ export class OpenRouterFreeProvider extends AIProvider {
     }
     const content=data?.choices?.[0]?.message?.content;
     const prose=(typeof content==='string' ? content : Array.isArray(content) ? content.map(x=>typeof x==='string'?x:x?.text||'').join('') : '').trim();
-    if (!prose || isLikelyInvalidProse(prose)) return {ok:false,text:null,errorType:'empty',errorMessage:'El modelo gratuito no devolvió prosa válida; tu borrador sigue guardado.',raw:null};
+    if (!prose || isLikelyInvalidProse(prose)) {
+      const finishReason = String(data?.choices?.[0]?.finish_reason || 'desconocido').slice(0,60);
+      const chosenModel = String(data?.model || model).slice(0,120);
+      const reasoningTokens = Number(data?.usage?.completion_tokens_details?.reasoning_tokens || 0);
+      const help = !prose && (finishReason === 'length' || reasoningTokens > 0)
+        ? 'El modelo agotó sus tokens antes de escribir texto visible. '
+        : !prose ? 'El modelo devolvió una respuesta sin texto visible. ' : 'La respuesta no era prosa válida. ';
+      return {
+        ok:false, text:null, errorType:'empty',
+        errorMessage:help + 'Modelo: ' + chosenModel + '; motivo: ' + finishReason + '. En Ajustes cambia el modelo de OpenRouter a arcee-ai/trinity-large-preview:free y pulsa Reanudar borrador. Nada se ha borrado.',
+        raw:null,
+      };
+    }
     return {ok:true,text:prose,errorType:null,errorMessage:null,raw:null};
   }
 }
