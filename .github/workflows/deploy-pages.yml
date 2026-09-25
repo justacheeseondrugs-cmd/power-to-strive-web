@@ -1,4 +1,4 @@
-name: Deploy Power to Strive Studio
+name: Deploy Inky Paws
 
 on:
   workflow_dispatch:
