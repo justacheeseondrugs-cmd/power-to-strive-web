@@ -240,7 +240,7 @@ export async function rejectPendingBlock(chapterId) {
 
 export async function finishReviewedChapter(chapterId) {
   const state = await db.get('generationState',chapterId);
-  if (!state || !state.wordsSoFar || state.pendingText) throw new Error('Primero aprueba el bloque pendiente.');
+  if (!state || !state.wordsSoFar || state.pendingText) throw new Error('Approve the pending block first.');
   state.status = 'completed';
   state.updatedAt = new Date().toISOString();
   await db.put('generationState',state);
