@@ -7,7 +7,7 @@ export class OpenAIProvider extends AIProvider {
     const apiKey = this.config.apiKey;
     const model = this.config.model || 'gpt-4o';
     if (!apiKey) {
-      return { ok: false, text: null, errorType: 'auth', errorMessage: 'OpenAI API key is missing. Add it in Settings.', raw: null };
+      return { ok: false, text: null, errorType: 'auth', errorMessage: 'Falta la API key de OpenAI en Ajustes.', raw: null };
     }
     const url = 'https://api.openai.com/v1/chat/completions';
     // Los modelos de razonamiento (GPT-5 / o-series) requieren
@@ -39,7 +39,7 @@ export class OpenAIProvider extends AIProvider {
           body: JSON.stringify(body),
         });
       } catch (err) {
-        return { ok: false, text: null, errorType: 'network', errorMessage: 'Network error while contacting OpenAI: ' + err.message, raw: err };
+        return { ok: false, text: null, errorType: 'network', errorMessage: 'Error de red al contactar OpenAI: ' + err.message, raw: err };
       }
 
       try { data = await res.json(); } catch { data = null; }
@@ -62,22 +62,22 @@ export class OpenAIProvider extends AIProvider {
 
     if (!res.ok) {
       if (res.status === 429) {
-        return { ok: false, text: null, errorType: 'quota', errorMessage: 'OpenAI returned HTTP 429 (quota or rate limit exceeded). Do not retry automatically; wait and try again.', raw: data };
+        return { ok: false, text: null, errorType: 'quota', errorMessage: 'OpenAI devolvió 429 (cuota/límite de tasa excedido). No reintentes automáticamente; espera y vuelve a intentar.', raw: data };
       }
       if (res.status === 401 || res.status === 403) {
-        return { ok: false, text: null, errorType: 'auth', errorMessage: 'OpenAI API key is invalid or does not have permission (HTTP ' + res.status + ').', raw: data };
+        return { ok: false, text: null, errorType: 'auth', errorMessage: 'API key de OpenAI inválida o sin permisos (HTTP ' + res.status + ').', raw: data };
       }
-      return { ok: false, text: null, errorType: 'http', errorMessage: 'OpenAI returned HTTP ' + res.status + (data?.error?.message ? ': ' + data.error.message : ''), raw: data };
+      return { ok: false, text: null, errorType: 'http', errorMessage: 'OpenAI devolvió HTTP ' + res.status + (data?.error?.message ? ': ' + data.error.message : ''), raw: data };
     }
 
     const choice = data?.choices?.[0];
     if (choice?.finish_reason === 'content_filter') {
-      return { ok: false, text: null, errorType: 'moderation', errorMessage: 'OpenAI blocked the response due to content filtering.', raw: data };
+      return { ok: false, text: null, errorType: 'moderation', errorMessage: 'OpenAI bloqueó la respuesta por el filtro de contenido.', raw: data };
     }
 
     const text = (choice?.message?.content || '').trim();
     if (!text || isLikelyInvalidProse(text)) {
-      return { ok: false, text: null, errorType: 'empty', errorMessage: 'OpenAI returned an empty or invalid response.', raw: data };
+      return { ok: false, text: null, errorType: 'empty', errorMessage: 'OpenAI devolvió una respuesta vacía o inválida.', raw: data };
     }
 
     return { ok: true, text, errorType: null, errorMessage: null, raw: data };

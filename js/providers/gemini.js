@@ -7,7 +7,7 @@ export class GeminiProvider extends AIProvider {
     const apiKey = this.config.apiKey;
     const model = this.config.model || 'gemini-3.8-flash';
     if (!apiKey) {
-      return { ok: false, text: null, errorType: 'auth', errorMessage: 'Gemini API key is missing. Add it in Settings.', raw: null };
+      return { ok: false, text: null, errorType: 'auth', errorMessage: 'Falta la API key de Gemini en Ajustes.', raw: null };
     }
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
     const body = {
@@ -33,7 +33,7 @@ export class GeminiProvider extends AIProvider {
         body: JSON.stringify(body),
       });
     } catch (err) {
-      return { ok: false, text: null, errorType: 'network', errorMessage: 'Network error while contacting Gemini: ' + err.message, raw: err };
+      return { ok: false, text: null, errorType: 'network', errorMessage: 'Error de red al contactar Gemini: ' + err.message, raw: err };
     }
 
     let data;
@@ -41,26 +41,26 @@ export class GeminiProvider extends AIProvider {
 
     if (!res.ok) {
       if (res.status === 429) {
-        return { ok: false, text: null, errorType: 'quota', errorMessage: 'Gemini returned HTTP 429 (quota or rate limit exceeded). Do not retry automatically; wait and try again.', raw: data };
+        return { ok: false, text: null, errorType: 'quota', errorMessage: 'Gemini devolvió 429 (cuota/límite de tasa excedido). No reintentes automáticamente; espera y vuelve a intentar.', raw: data };
       }
       if (res.status === 503) {
-        return { ok: false, text: null, errorType: 'busy', errorMessage: 'Gemini returned HTTP 503: the model is temporarily busy. Your draft is saved. Wait a few minutes and resume, or choose another available Flash model in Settings.', raw: data };
+        return { ok: false, text: null, errorType: 'busy', errorMessage: 'Gemini devolvió HTTP 503: el modelo tiene alta demanda temporal. El borrador está guardado. Espera unos minutos y pulsa Reanudar; también puedes elegir otro modelo Flash disponible en Ajustes.', raw: data };
       }
       if (res.status === 401 || res.status === 403) {
-        return { ok: false, text: null, errorType: 'auth', errorMessage: 'Gemini API key is invalid or does not have permission (HTTP ' + res.status + ').', raw: data };
+        return { ok: false, text: null, errorType: 'auth', errorMessage: 'API key de Gemini inválida o sin permisos (HTTP ' + res.status + ').', raw: data };
       }
-      return { ok: false, text: null, errorType: 'http', errorMessage: 'Gemini returned HTTP ' + res.status + (data?.error?.message ? ': ' + data.error.message : ''), raw: data };
+      return { ok: false, text: null, errorType: 'http', errorMessage: 'Gemini devolvió HTTP ' + res.status + (data?.error?.message ? ': ' + data.error.message : ''), raw: data };
     }
 
     const candidate = data?.candidates?.[0];
     const finishReason = candidate?.finishReason;
     if (finishReason === 'SAFETY' || finishReason === 'RECITATION' || data?.promptFeedback?.blockReason) {
-      return { ok: false, text: null, errorType: 'moderation', errorMessage: 'Gemini blocked the response (reason: ' + (finishReason || data?.promptFeedback?.blockReason) + ').', raw: data };
+      return { ok: false, text: null, errorType: 'moderation', errorMessage: 'Gemini bloqueó la respuesta (motivo: ' + (finishReason || data?.promptFeedback?.blockReason) + ').', raw: data };
     }
 
     const text = (candidate?.content?.parts || []).map((p) => p.text || '').join('').trim();
     if (!text || isLikelyInvalidProse(text)) {
-      return { ok: false, text: null, errorType: 'empty', errorMessage: 'Gemini returned an empty or invalid response.', raw: data };
+      return { ok: false, text: null, errorType: 'empty', errorMessage: 'Gemini devolvió una respuesta vacía o inválida.', raw: data };
     }
 
     return { ok: true, text, errorType: null, errorMessage: null, raw: data };

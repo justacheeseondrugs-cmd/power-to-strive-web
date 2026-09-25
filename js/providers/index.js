@@ -12,7 +12,7 @@ import { OpenRouterFreeProvider } from './openrouter.js';
 const REGISTRY = {
   gemini: { label: 'Google Gemini', build: (cfg) => new GeminiProvider(cfg) },
   openai: { label: 'OpenAI (GPT)', build: (cfg) => new OpenAIProvider(cfg) },
-  openrouter: { label: 'OpenRouter · free models', build: (cfg) => new OpenRouterFreeProvider(cfg) },
+  openrouter: { label: 'OpenRouter · modelos gratuitos', build: (cfg) => new OpenRouterFreeProvider(cfg) },
 };
 
 export function listProviders() {

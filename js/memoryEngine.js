@@ -45,19 +45,19 @@ export async function generateContinuityMemory(chapter) {
   const retrievedChunks = [];
   const systemPrompt = assembleSystemPrompt({
     lockedFacts,
-    chapterInstructions: 'Analyze the author's entire chapter and extract an accurate, structured continuity summary. Do not invent anything that is not supported by the chapter.',
+    chapterInstructions: 'Analiza el capítulo completo proporcionado por el usuario y extrae, con precisión y sin inventar nada que no esté implícito en el texto, un resumen de continuidad estructurado.',
     characters, memoryEntries: [], canonNotes, recentChapterExcerpt: '', retrievedChunks,
-    extraGuidance: `Reply EXCLUSIVELY with a valid JSON object (no Markdown and no text outside the JSON) using exactly these keys: EVENTS, RELATIONSHIP_CHANGES, NEW_FACTS, WHO_KNOWS_WHAT, PHYSICAL_STATE, CURRENT_LOCATION_TIME, OPEN_THREADS. Write each value in English as a brief string (1–4 sentences). If a category does not apply in this chapter, use an empty string.`,
+    extraGuidance: `Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto fuera del JSON) con estas claves exactas: EVENTS, RELATIONSHIP_CHANGES, NEW_FACTS, WHO_KNOWS_WHAT, PHYSICAL_STATE, CURRENT_LOCATION_TIME, OPEN_THREADS. Cada valor es un string breve (1-4 frases). Si una categoría no aplica en este capítulo, usa un string vacío.`,
   });
-  const userPrompt = `CHAPTER TO ANALYZE ("${chapter.title}"):\n\n${chapter.content}`;
+  const userPrompt = `CAPÍTULO A ANALIZAR ("${chapter.title}"):\n\n${chapter.content}`;
   // En modelos de razonamiento, max_completion_tokens incluye también los
   // tokens de razonamiento; 900 puede agotarse antes de devolver el JSON.
   const reasoningModel = /^(?:gpt-5(?:[.-]|$)|o[134](?:[.-]|$))/i.test(provider.config?.model || '');
   const result = await provider.generate({ systemPrompt, userPrompt, maxOutputTokens: reasoningModel ? 4800 : 1200, temperature: 0.3 });
-  if (!result.ok || isLikelyInvalidProse(result.text)) return { ok: false, error: result.errorMessage || 'Could not generate continuity memory.' };
+  if (!result.ok || isLikelyInvalidProse(result.text)) return { ok: false, error: result.errorMessage || 'No se pudo generar la memoria de continuidad.' };
   const fields = parseMemoryResponse(result.text);
   if (!Object.values(fields).some((value) => String(value || '').trim())) {
-    return { ok: false, error: 'The AI did not return a usable continuity summary. No empty memory was saved.' };
+    return { ok: false, error: 'La IA no devolvió un resumen de continuidad reconocible. No se ha guardado una memoria vacía.' };
   }
   // Rehacer una memoria sustituye la anterior del MISMO capítulo, sin duplicarla.
   const previous = await db.getByIndex('memoryEntries', 'by_chapter', chapter.id);
@@ -84,12 +84,12 @@ export async function rewriteChapter(chapter, rewriteInstructions) {
   const retrievedChunks = getRelevantChunks(documents.filter((d) => d.type !== 'STYLE_ONLY'), allChunks, queryText, { context: 'rewrite' });
   const systemPrompt = assembleSystemPrompt({
     lockedFacts,
-    chapterInstructions: `You will REWRITE an existing chapter following the author's instructions. Rewrite instructions: ${rewriteInstructions}`,
+    chapterInstructions: `Vas a REESCRIBIR un capítulo existente según instrucciones del autor. Instrucciones de reescritura: ${rewriteInstructions}`,
     characters, memoryEntries, canonNotes, recentChapterExcerpt: '', retrievedChunks,
-    extraGuidance: 'Return the entire rewritten chapter as prose, preserving the original narrative language and without meta-commentary or explanations outside the story.',
+    extraGuidance: 'Devuelve el capítulo reescrito completo, en prosa, sin comentarios meta ni explicaciones fuera del propio texto narrativo.',
   });
-  const userPrompt = `ORIGINAL CHAPTER:\n\n${chapter.content}\n\n---\n\nRewrite this chapter following the instructions above. Preserve everything the author did not ask to change.`;
+  const userPrompt = `CAPÍTULO ORIGINAL:\n\n${chapter.content}\n\n---\n\nReescribe este capítulo aplicando las instrucciones indicadas, conservando lo que no se pidió cambiar.`;
   const result = await provider.generate({ systemPrompt, userPrompt, maxOutputTokens: 4000, temperature: 1.0 });
-  if (!result.ok || isLikelyInvalidProse(result.text)) return { ok: false, error: result.errorMessage || 'The rewrite did not return valid prose. No changes were saved.' };
+  if (!result.ok || isLikelyInvalidProse(result.text)) return { ok: false, error: result.errorMessage || 'La reescritura no devolvió prosa válida; no se guardó ningún cambio.' };
   return { ok: true, text: result.text.trim() };
 }

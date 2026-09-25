@@ -67,18 +67,18 @@ function savePreferences(next) {
 
 export function renderAppearanceSettings() {
   return '<div class="card" id="appearance-card">' +
-    '<h3>🌸 Appearance & Reading</h3>' +
-    '<p class="muted">Make your writing space your own. Display preferences are saved in this browser and never change your chapters.</p>' +
+    '<h3>🌸 Apariencia y lectura</h3>' +
+    '<p class="muted">Personaliza tu estudio. Los cambios se guardan automáticamente en este navegador y no modifican tus capítulos.</p>' +
     '<div class="grid-2">' +
-      '<div><label class="field-label" for="a-theme">App theme</label><select id="a-theme"><option value="light">Light · pastel pink</option><option value="dark">Dark · plum and mauve</option><option value="system">Follow device settings</option></select></div>' +
-      '<div><label class="field-label" for="a-paper">Page color</label><select id="a-paper"><option value="cream">Cream paper</option><option value="sepia">Soft sepia</option><option value="dark">Dark paper</option></select></div>' +
-      '<div><label class="field-label" for="a-font">Chapter font</label><select id="a-font"><option value="cormorant">Cormorant Garamond · original</option><option value="georgia">Georgia</option><option value="lora">Lora</option><option value="baskerville">Libre Baskerville</option><option value="garamond">EB Garamond</option></select></div>' +
-      '<div><label class="field-label" for="a-size">Font size <output id="a-size-val"></output></label><input id="a-size" type="range" min="15" max="25" step="1"></div>' +
-      '<div><label class="field-label" for="a-line">Line spacing <output id="a-line-val"></output></label><input id="a-line" type="range" min="1.4" max="2.1" step=".05"></div>' +
-      '<div><label class="field-label" for="a-width">Page width <output id="a-width-val"></output></label><input id="a-width" type="range" min="600" max="900" step="20"></div>' +
+      '<div><label class="field-label" for="a-theme">Tema de la aplicación</label><select id="a-theme"><option value="light">Claro · rosa pastel</option><option value="dark">Oscuro · ciruela y malva</option><option value="system">Seguir el dispositivo</option></select></div>' +
+      '<div><label class="field-label" for="a-paper">Color de las páginas</label><select id="a-paper"><option value="cream">Papel crema</option><option value="sepia">Sepia suave</option><option value="dark">Papel oscuro</option></select></div>' +
+      '<div><label class="field-label" for="a-font">Tipografía del capítulo</label><select id="a-font"><option value="cormorant">Cormorant Garamond · original</option><option value="georgia">Georgia</option><option value="lora">Lora</option><option value="baskerville">Libre Baskerville</option><option value="garamond">EB Garamond</option></select></div>' +
+      '<div><label class="field-label" for="a-size">Tamaño de letra <output id="a-size-val"></output></label><input id="a-size" type="range" min="15" max="25" step="1"></div>' +
+      '<div><label class="field-label" for="a-line">Interlineado <output id="a-line-val"></output></label><input id="a-line" type="range" min="1.4" max="2.1" step=".05"></div>' +
+      '<div><label class="field-label" for="a-width">Ancho de página <output id="a-width-val"></output></label><input id="a-width" type="range" min="600" max="900" step="20"></div>' +
     '</div>' +
-    '<div class="paper appearance-preview"><p>Stories live in the little details, too: a pink door, a pen on the desk, and a kitten watching over every page.</p><p><em>This is how your next chapter will look.</em></p></div>' +
-    '<div class="btn-row"><button type="button" class="btn btn-ghost btn-sm" id="a-reset">Restore default appearance</button></div>' +
+    '<div class="paper appearance-preview"><p>Las historias también viven en los pequeños detalles: una puerta rosa, una pluma sobre la mesa y un gatito que vigila cada página.</p><p><em>Así se verá tu próximo capítulo.</em></p></div>' +
+    '<div class="btn-row"><button type="button" class="btn btn-ghost btn-sm" id="a-reset">Restaurar apariencia original</button></div>' +
     '</div>';
 }
 

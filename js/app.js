@@ -1,27 +1,27 @@
 import { db } from './db.js';
-import { renderWrite } from './ui/write.js?v=20260925-english-v1';
-import { renderChapters } from './ui/chapters.js?v=20260925-english-v1';
-import { renderCharacters } from './ui/characters.js?v=20260925-english-v1';
-import { renderDocuments } from './ui/documents.js?v=20260925-english-v1';
-import { renderMemory } from './ui/memory.js?v=20260925-english-v1';
-import { renderSettings } from './ui/settings.js?v=20260925-english-v1';
-import { renderPlanner } from './ui/planner.js?v=20260925-english-v1';
+import { renderWrite } from './ui/write.js?v=20260919-workspaces-v1';
+import { renderChapters } from './ui/chapters.js?v=20260919-memory-button-2';
+import { renderCharacters } from './ui/characters.js';
+import { renderDocuments } from './ui/documents.js';
+import { renderMemory } from './ui/memory.js';
+import { renderSettings } from './ui/settings.js';
+import { renderPlanner } from './ui/planner.js?v=20260925-sos-v2';
 import { bus, toast } from './utils.js';
 import { getActiveGenerationState } from './generation.js';
-import { initAppearance } from './ui/appearance.js?v=20260925-english-v1';
+import { initAppearance } from './ui/appearance.js';
 
 const VIEWS = { write: renderWrite, planner: renderPlanner, chapters: renderChapters, characters: renderCharacters, documents: renderDocuments, memory: renderMemory, settings: renderSettings };
 async function seedDefaults() {
   const facts = await db.getAll('lockedFacts');
   if (facts.length === 0) {
-    await db.put('lockedFacts', { text: 'Levi is female in this AU. ALWAYS use she/her pronouns for Levi. Never use he/him/his or masculine terms (man, husband, boyfriend, son) to refer to Levi. Those words may still refer to other male characters in the same sentence.', isCore: true });
-    await db.put('lockedFacts', { text: 'Hange uses they/them pronouns. Never use binary pronouns (he/she) to refer to Hange. Those pronouns may still refer to other characters mentioned near Hange.', isCore: true });
+    await db.put('lockedFacts', { text: 'Levi es mujer en este AU. Usa SIEMPRE pronombres she/her (ella/la) para Levi. Nunca uses he/him/his ni términos masculinos (hombre, esposo, novio, hijo) para referirte a Levi. Esas palabras sí pueden usarse para otros personajes masculinos en la misma frase.', isCore: true });
+    await db.put('lockedFacts', { text: 'Hange usa pronombres they/them (elle/su). Nunca uses pronombres binarios (he/she, él/ella) para Hange. Esos pronombres sí pueden referirse a otros personajes cercanos a Hange en la misma frase.', isCore: true });
   }
   const settings = await db.get('settings', 'main');
   if (!settings) await db.put('settings', { id:'main', provider:'gemini', apiKeys:{gemini:'',openai:''}, models:{gemini:'gemini-2.0-flash',openai:'gpt-4o'}, blockWordSize:900 });
 }
 
-const ORIGINAL = { id:'original', name:'Original story (existing data)' };
+const ORIGINAL = { id:'original', name:'Historia original (mis datos actuales)' };
 async function loadWorkspaces() {
   const saved = await db.get('settings','workspaces');
   return [ORIGINAL,...(saved?.items || []).filter((p) => p.id && p.id !== ORIGINAL.id)];
@@ -47,19 +47,19 @@ async function initWorkspaces() {
     const active = await getActiveGenerationState();
     if (active?.status === 'in_progress') {
       select.value = old;
-      toast('Finish, pause, or discard the current generation block first.', { error:true, ms:6500 });
+      toast('Termina, detén o descarta primero el bloque que se está generando.', { error:true, ms:6500 });
       return;
     }
     db.setActiveProjectId(select.value);
     await seedDefaults();
     await renderWorkspaces();
     switchView('chapters');
-    toast('Story switched. Only this project's data is shown.');
+    toast('Historia cambiada. Solo verás los datos de este proyecto.');
   });
   document.getElementById('workspace-create').addEventListener('click', async () => {
     const active = await getActiveGenerationState();
-    if (active?.status === 'in_progress') return toast('Stop the current generation first.', {error:true});
-    const name = window.prompt('Name of the new story (chapters and documents will not be copied):');
+    if (active?.status === 'in_progress') return toast('Detén primero la generación en curso.', {error:true});
+    const name = window.prompt('Nombre de la nueva historia (no se copiarán capítulos ni documentos):');
     if (!name?.trim()) return;
     const saved = await db.get('settings','workspaces') || {id:'workspaces',items:[]};
     const project = { id:db.uid(),name:name.trim().slice(0,90) };
@@ -69,7 +69,7 @@ async function initWorkspaces() {
     await seedDefaults();
     await renderWorkspaces();
     switchView('chapters');
-    toast('New story created. Your original story and its memory remain untouched.');
+    toast('Historia nueva creada. La original y su memoria siguen intactas.');
   });
 }
 
