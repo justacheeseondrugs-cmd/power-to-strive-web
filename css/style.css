@@ -313,15 +313,16 @@ body .paper.appearance-preview p:last-child{ margin-bottom:0; }
 #appearance-card output{ font-variant-numeric:tabular-nums;font-weight:400;color:var(--paper-ink-soft); }
 #appearance-card .grid-2{ align-items:end; }
 
-/* Original SVG kitten: brand embellishment, not a new external dependency. */
+/* Cat-and-pink-book logo provided by the app owner. */
 .app-header .brand-cat{
-  width:44px;height:44px;object-fit:contain;flex:none;
-  filter:drop-shadow(0 3px 5px rgba(67,31,43,.13));
+  width:54px;height:54px;object-fit:cover;flex:none;
+  border-radius:15px;background:#fff8f6;
+  box-shadow:0 4px 12px rgba(67,31,43,.13);
 }
 .app-header .brand-mark{ flex:none; }
 @media(max-width:410px){
   .app-header{ padding-left:12px;padding-right:12px;gap:7px; }
-  .app-header .brand-cat{ width:36px;height:36px; }
+  .app-header .brand-cat{ width:48px;height:48px; border-radius:13px; }
   .brand-title{ font-size:20px; }
 }
 @media(prefers-reduced-motion:reduce){
