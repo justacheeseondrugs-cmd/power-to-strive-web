@@ -1,14 +1,14 @@
 import { db } from './db.js';
-import { renderWrite } from './ui/write.js?v=20260919-workspaces-v1';
-import { renderChapters } from './ui/chapters.js?v=20260919-memory-button-2';
-import { renderCharacters } from './ui/characters.js';
-import { renderDocuments } from './ui/documents.js';
-import { renderMemory } from './ui/memory.js';
-import { renderSettings } from './ui/settings.js';
-import { renderPlanner } from './ui/planner.js?v=20260925-sos-v2';
+import { renderWrite } from './ui/write.js?v=20260925-english-v1';
+import { renderChapters } from './ui/chapters.js?v=20260925-english-v1';
+import { renderCharacters } from './ui/characters.js?v=20260925-english-v1';
+import { renderDocuments } from './ui/documents.js?v=20260925-english-v1';
+import { renderMemory } from './ui/memory.js?v=20260925-english-v1';
+import { renderSettings } from './ui/settings.js?v=20260925-english-v1';
+import { renderPlanner } from './ui/planner.js?v=20260925-english-v1';
 import { bus, toast } from './utils.js';
 import { getActiveGenerationState } from './generation.js';
-import { initAppearance } from './ui/appearance.js';
+import { initAppearance } from './ui/appearance.js?v=20260925-english-v1';
 
 const VIEWS = { write: renderWrite, planner: renderPlanner, chapters: renderChapters, characters: renderCharacters, documents: renderDocuments, memory: renderMemory, settings: renderSettings };
 async function seedDefaults() {
@@ -21,7 +21,7 @@ async function seedDefaults() {
   if (!settings) await db.put('settings', { id:'main', provider:'gemini', apiKeys:{gemini:'',openai:''}, models:{gemini:'gemini-2.0-flash',openai:'gpt-4o'}, blockWordSize:900 });
 }
 
-const ORIGINAL = { id:'original', name:'Historia original (mis datos actuales)' };
+const ORIGINAL = { id:'original', name:'Original story (existing data)' };
 async function loadWorkspaces() {
   const saved = await db.get('settings','workspaces');
   return [ORIGINAL,...(saved?.items || []).filter((p) => p.id && p.id !== ORIGINAL.id)];
@@ -47,19 +47,19 @@ async function initWorkspaces() {
     const active = await getActiveGenerationState();
     if (active?.status === 'in_progress') {
       select.value = old;
-      toast('Termina, detén o descarta primero el bloque que se está generando.', { error:true, ms:6500 });
+      toast('Finish, pause, or discard the current generation block first.', { error:true, ms:6500 });
       return;
     }
     db.setActiveProjectId(select.value);
     await seedDefaults();
     await renderWorkspaces();
     switchView('chapters');
-    toast('Historia cambiada. Solo verás los datos de este proyecto.');
+    toast('Story switched. Only this project's data is shown.');
   });
   document.getElementById('workspace-create').addEventListener('click', async () => {
     const active = await getActiveGenerationState();
-    if (active?.status === 'in_progress') return toast('Detén primero la generación en curso.', {error:true});
-    const name = window.prompt('Nombre de la nueva historia (no se copiarán capítulos ni documentos):');
+    if (active?.status === 'in_progress') return toast('Stop the current generation first.', {error:true});
+    const name = window.prompt('Name of the new story (chapters and documents will not be copied):');
     if (!name?.trim()) return;
     const saved = await db.get('settings','workspaces') || {id:'workspaces',items:[]};
     const project = { id:db.uid(),name:name.trim().slice(0,90) };
@@ -69,7 +69,7 @@ async function initWorkspaces() {
     await seedDefaults();
     await renderWorkspaces();
     switchView('chapters');
-    toast('Historia nueva creada. La original y su memoria siguen intactas.');
+    toast('New story created. Your original story and its memory remain untouched.');
   });
 }
 
