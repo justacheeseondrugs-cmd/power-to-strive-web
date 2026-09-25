@@ -8,18 +8,18 @@ import { getActiveGenerationState } from '../generation.js';
 import { escapeHtml, toast, bus } from '../utils.js';
 
 const HISTORY_LIMIT = 50;
-const CONTEXT_TURNS = 10;
+const CONTEXT_TURNS = 4;
 const projectHistoryId = (projectId) => 'planner-chat:' + projectId;
 const projectDraftId = (projectId) => 'planner-draft:' + projectId;
 const short = (value, limit) => String(value || '').slice(0, limit);
 
 function formatMemory(entries) {
-  return entries.slice(-3).map((m) => [
+  return entries.slice(-2).map((m) => [
     m.chapterTitle ? 'CHAPTER: ' + m.chapterTitle : '',
-    m.events ? 'Events: ' + short(m.events, 1400) : '',
-    m.whoKnowsWhat ? 'Who knows what: ' + short(m.whoKnowsWhat, 1100) : '',
+    m.events ? 'Events: ' + short(m.events, 950) : '',
+    m.whoKnowsWhat ? 'Who knows what: ' + short(m.whoKnowsWhat, 750) : '',
     m.currentLocationTime ? 'Current scene: ' + short(m.currentLocationTime, 350) : '',
-    m.openThreads ? 'Open threads: ' + short(m.openThreads, 700) : '',
+    m.openThreads ? 'Open threads: ' + short(m.openThreads, 500) : '',
   ].filter(Boolean).join('\n')).join('\n\n');
 }
 
@@ -31,30 +31,30 @@ async function collectContext(question) {
   ]);
   const sortedChapters = chapters.filter((ch) => ch.content?.trim())
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
-  const recent = sortedChapters.slice(-2);
+  const recent = sortedChapters.slice(-1);
   const chapterContext = recent.map((ch, i) => {
-    const tail = i === recent.length - 1 ? 7400 : 2200;
+    const tail = 6200;
     return 'CHAPTER "' + ch.title + '" [' + (ch.status || 'draft') + '] — actual saved text, final excerpt:\n…' + ch.content.slice(-tail);
   }).join('\n\n');
   const characterContext = characters.filter((ch) => ch.active !== false).map((ch) => [
     ch.name + ' (' + (ch.pronouns || 'pronouns unspecified') + ')',
-    'personality: ' + short(ch.personality, 280),
-    'speech: ' + short(ch.speechStyle, 190),
-    'hard rules: ' + short(ch.hardRules, 400),
-    'current knowledge: ' + short(ch.currentKnowledge, 520),
-    'relationships: ' + short(ch.relationships, 270),
-    'never do: ' + short(ch.neverDoRules, 300),
+    'personality: ' + short(ch.personality, 190),
+    'speech: ' + short(ch.speechStyle, 120),
+    'hard rules: ' + short(ch.hardRules, 280),
+    'current knowledge: ' + short(ch.currentKnowledge, 350),
+    'relationships: ' + short(ch.relationships, 180),
+    'never do: ' + short(ch.neverDoRules, 200),
   ].join(' | ')).join('\n');
   // Only the CURRENT AU's factual references. STYLE_ONLY and unrelated plot
   // documents may never introduce story facts during planning.
   const factualDocs = documents.filter((d) => ['CANON','CHARACTER','CONTINUITY'].includes(d.type) && d.active !== false);
   const query = [question, ...recent.map((c) => c.title + ' ' + c.content.slice(-1800))].join('\n');
-  const matches = getRelevantChunks(factualDocs, chunks, query, { context:'planner' }).slice(0, 4);
-  const docContext = matches.map((c) => 'REFERENCE "' + c.document.filename + '" (' + c.document.type + '): ' + short(c.text, 1000)).join('\n\n');
+  const matches = getRelevantChunks(factualDocs, chunks, query, { context:'planner' }).slice(0, 2);
+  const docContext = matches.map((c) => 'REFERENCE "' + c.document.filename + '" (' + c.document.type + '): ' + short(c.text, 750)).join('\n\n');
   return [
-    'LOCKED FACTS:\n' + lockedFacts.map((f) => '- ' + f.text).join('\n').slice(0, 14000),
-    'PERMANENT AU CANON:\n' + canonNotes.map((n) => '- ' + n.text).join('\n').slice(0, 8500),
-    'CHARACTER PROFILES:\n' + characterContext.slice(0, 17500),
+    'LOCKED FACTS:\n' + lockedFacts.map((f) => '- ' + f.text).join('\n').slice(0, 9000),
+    'PERMANENT AU CANON:\n' + canonNotes.map((n) => '- ' + n.text).join('\n').slice(0, 6000),
+    'CHARACTER PROFILES:\n' + characterContext.slice(0, 10500),
     'RECENT APPROVED CONTINUITY MEMORIES:\n' + formatMemory(memories.sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')))),
     'ACTUAL MOST RECENT SAVED CHAPTER ENDINGS (source of truth for immediate next scene):\n' + chapterContext,
     docContext ? 'SELECTED CURRENT-AU REFERENCE EXCERPTS (background only, not events that automatically occurred):\n' + docContext : '',
@@ -96,14 +96,14 @@ export async function renderPlanner(root) {
   let messages = (saved?.messages || []).filter((m) => ['user','assistant'].includes(m.role) && typeof m.text === 'string');
   let busy = false;
   root.innerHTML = [
-    '<h2 class="section-title">💡 Planificar con IA</h2>',
-    '<p class="section-hint">Habla con la IA sobre tu historia: ideas, escenas, reacciones, conflictos y opciones para el próximo capítulo. No se escribe ni cambia el canon sin tu aprobación.</p>',
+    '<h2 class="section-title">🆘 SOS de ideas</h2>',
+    '<p class="section-hint">Úsalo solo cuando te quedes atascada: ideas, escenas, reacciones o caminos posibles. No cambia tu canon ni escribe capítulos sin tu aprobación.</p>',
     '<div class="card"><div class="planner-chat" role="log" aria-label="Conversación de planificación" id="planner-messages"></div>',
     '<label class="field-label" for="planner-input">¿Qué te gustaría planear?</label>',
     '<textarea id="planner-input" rows="4" maxlength="6000" placeholder="My chapter ends with Joseph revealing the network… What could happen next?"></textarea>',
     '<div class="btn-row"><button type="button" class="btn btn-primary" id="planner-send">💬 Enviar</button>',
     '<button type="button" class="btn btn-ghost" id="planner-clear">Nueva conversación</button></div>',
-    '<p id="planner-status" class="muted" role="status">Usa tu proveedor y modelo actuales. Cada mensaje hace una llamada a la API; no mostramos contadores de costos.</p>',
+    '<p id="planner-status" class="muted" role="status">SOS opcional: solo usa la API cuando pulsas Enviar. Mantuvimos el contexto compacto para no gastar tokens de más.</p>',
     '</div>',
     '<div class="card"><h3>¿Sin ideas? Empieza por aquí</h3>',
     '<div class="btn-row"><button type="button" class="btn btn-ghost btn-sm planner-example" data-prompt="Give me three distinct, canon-consistent directions for the next chapter, based on the exact end of my latest saved chapter. Avoid revealing secrets prematurely.">🌷 Dame 3 ideas</button>',
@@ -173,7 +173,7 @@ export async function renderPlanner(root) {
       const result = await getProvider(settings).generate({
         systemPrompt:SYSTEM,
         userPrompt,
-        maxOutputTokens:2300,
+        maxOutputTokens:1400,
         temperature:1,
       });
       if (!result.ok) throw new Error(result.errorMessage || 'La IA no pudo responder.');
