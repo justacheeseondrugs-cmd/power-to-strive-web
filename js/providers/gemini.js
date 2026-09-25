@@ -7,7 +7,7 @@ export class GeminiProvider extends AIProvider {
     const apiKey = this.config.apiKey;
     const model = this.config.model || 'gemini-3.8-flash';
     if (!apiKey) {
-      return { ok: false, text: null, errorType: 'auth', errorMessage: 'Falta la API key de Gemini en Ajustes.', raw: null };
+      return { ok: false, text: null, errorType: 'auth', errorMessage: 'Gemini API key is missing. Add it in Settings.', raw: null };
     }
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
     const body = {
@@ -33,7 +33,7 @@ export class GeminiProvider extends AIProvider {
         body: JSON.stringify(body),
       });
     } catch (err) {
-      return { ok: false, text: null, errorType: 'network', errorMessage: 'Error de red al contactar Gemini: ' + err.message, raw: err };
+      return { ok: false, text: null, errorType: 'network', errorMessage: 'Network error while contacting Gemini: ' + err.message, raw: err };
     }
 
     let data;
