@@ -5,11 +5,12 @@ import { renderCharacters } from './ui/characters.js';
 import { renderDocuments } from './ui/documents.js';
 import { renderMemory } from './ui/memory.js';
 import { renderSettings } from './ui/settings.js';
+import { renderPlanner } from './ui/planner.js?v=20260925-planner-v1';
 import { bus, toast } from './utils.js';
 import { getActiveGenerationState } from './generation.js';
 import { initAppearance } from './ui/appearance.js';
 
-const VIEWS = { write: renderWrite, chapters: renderChapters, characters: renderCharacters, documents: renderDocuments, memory: renderMemory, settings: renderSettings };
+const VIEWS = { write: renderWrite, planner: renderPlanner, chapters: renderChapters, characters: renderCharacters, documents: renderDocuments, memory: renderMemory, settings: renderSettings };
 async function seedDefaults() {
   const facts = await db.getAll('lockedFacts');
   if (facts.length === 0) {
