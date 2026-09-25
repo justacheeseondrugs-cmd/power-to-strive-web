@@ -1,0 +1,50 @@
+name: Check planning chat
+on:
+  push:
+    branches: [main]
+    paths:
+      - "js/ui/planner.js"
+      - "js/ui/write.js"
+      - "js/app.js"
+      - "index.html"
+      - "sw.js"
+      - ".github/workflows/check-planner.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  syntax-and-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check app scripts parse correctly
+        run: |
+          node --check js/ui/planner.js
+          node --check js/ui/write.js
+          node --check js/app.js
+          node --check js/generation.js
+          node --check js/db.js
+      - name: Confirm planner wiring and zero schema changes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          app=Path('js/app.js').read_text()
+          page=Path('index.html').read_text()
+          planner=Path('js/ui/planner.js').read_text()
+          writer=Path('js/ui/write.js').read_text()
+          sw=Path('sw.js').read_text()
+          db=Path('js/db.js').read_text()
+          assert 'planner: renderPlanner' in app
+          assert 'data-view="planner"' in page
+          assert 'js/ui/planner.js' in sw
+          assert 'planner-chat:' in planner and 'planner-draft:' in planner
+          assert "db.put('chapters'" not in planner
+          assert "db.put('canonNotes'" not in planner
+          assert "db.put('lockedFacts'" not in planner
+          assert 'plannerDraft?.text && !active' in writer
+          assert "const DB_VERSION = 1" in db
+          print("PASS: planning UI wired, project-specific local chat, no automatic canon/manuscript writes, database version unchanged")
+          PY
