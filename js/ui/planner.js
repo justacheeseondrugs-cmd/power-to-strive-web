@@ -4,6 +4,7 @@
 import { db } from '../db.js';
 import { getProvider } from '../providers/index.js';
 import { getRelevantChunks } from '../retrieval.js';
+import { getActiveGenerationState } from '../generation.js';
 import { escapeHtml, toast, bus } from '../utils.js';
 
 const HISTORY_LIMIT = 50;
@@ -130,6 +131,10 @@ export async function renderPlanner(root) {
     if (copy) {
       try { await navigator.clipboard.writeText(message.text); toast('Idea copiada.'); }
       catch { toast('No se pudo copiar; selecciona el texto manualmente.', {error:true}); }
+      return;
+    }
+    if (await getActiveGenerationState()) {
+      toast('Ya hay un capítulo en curso. Usa «Copiar» y pega la idea en las correcciones del siguiente bloque.',{ms:7500});
       return;
     }
     await db.put('settings', {id:projectDraftId(projectId),text:message.text,createdAt:new Date().toISOString()});
