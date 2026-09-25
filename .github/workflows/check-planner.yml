@@ -5,6 +5,7 @@ on:
     paths:
       - "js/ui/planner.js"
       - "js/ui/write.js"
+      - "js/ui/chapters.js"
       - "js/app.js"
       - "index.html"
       - "sw.js"
@@ -35,16 +36,22 @@ jobs:
           page=Path('index.html').read_text()
           planner=Path('js/ui/planner.js').read_text()
           writer=Path('js/ui/write.js').read_text()
+          chapters=Path('js/ui/chapters.js').read_text()
           sw=Path('sw.js').read_text()
           db=Path('js/db.js').read_text()
           assert 'planner: renderPlanner' in app
           assert 'data-view="planner"' in page
+          assert 'id="view-planner"' in page
           assert 'js/ui/planner.js' in sw
           assert 'planner-chat:' in planner and 'planner-draft:' in planner
           assert "db.put('chapters'" not in planner
           assert "db.put('canonNotes'" not in planner
           assert "db.put('lockedFacts'" not in planner
           assert 'plannerDraft?.text && !active' in writer
+          assert 'downloadMarkdown' in chapters
+          assert 'downloadChapterMarkdown' in chapters
+          assert 'downloadAllChaptersMarkdown' in chapters
+          assert 'getProvider' not in chapters
           assert "const DB_VERSION = 1" in db
-          print("PASS: planning UI wired, project-specific local chat, no automatic canon/manuscript writes, database version unchanged")
+          print("PASS: SOS planner renders, stays project-local, MD exports are local-only, and database schema is unchanged")
           PY
