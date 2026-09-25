@@ -14,8 +14,8 @@ const VIEWS = { write: renderWrite, planner: renderPlanner, chapters: renderChap
 async function seedDefaults() {
   const facts = await db.getAll('lockedFacts');
   if (facts.length === 0) {
-    await db.put('lockedFacts', { text: 'Levi es mujer en este AU. Usa SIEMPRE pronombres she/her (ella/la) para Levi. Nunca uses he/him/his ni términos masculinos (hombre, esposo, novio, hijo) para referirte a Levi. Esas palabras sí pueden usarse para otros personajes masculinos en la misma frase.', isCore: true });
-    await db.put('lockedFacts', { text: 'Hange usa pronombres they/them (elle/su). Nunca uses pronombres binarios (he/she, él/ella) para Hange. Esos pronombres sí pueden referirse a otros personajes cercanos a Hange en la misma frase.', isCore: true });
+    await db.put('lockedFacts', { text: 'Levi is female in this AU. ALWAYS use she/her pronouns for Levi. Never use he/him/his or masculine terms (man, husband, boyfriend, son) to refer to Levi. Those words may still refer to other male characters in the same sentence.', isCore: true });
+    await db.put('lockedFacts', { text: 'Hange uses they/them pronouns. Never use binary pronouns (he/she) to refer to Hange. Those pronouns may still refer to other characters mentioned near Hange.', isCore: true });
   }
   const settings = await db.get('settings', 'main');
   if (!settings) await db.put('settings', { id:'main', provider:'gemini', apiKeys:{gemini:'',openai:''}, models:{gemini:'gemini-2.0-flash',openai:'gpt-4o'}, blockWordSize:900 });
