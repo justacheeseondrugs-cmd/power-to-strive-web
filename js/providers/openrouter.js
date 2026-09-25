@@ -23,14 +23,14 @@ export class OpenRouterFreeProvider extends AIProvider {
           stream:false,
         }),
       });
-    } catch(e) { return {ok:false,text:null,errorType:'network',errorMessage:'Error de conexión con OpenRouter: '+e.message,raw:null}; }
+    } catch(e) { return {ok:false,text:null,errorType:'network',errorMessage:'Connection error with OpenRouter: '+e.message,raw:null}; }
     let data;
     try {data=await response.json();} catch {data=null;}
     const info = String(data?.error?.message || '').slice(0,250);
     if (!response.ok) {
       const status = response.status;
       let errorType = status === 429 || status === 402 ? 'quota' : [502,503,504].includes(status) ? 'busy' : [401,403].includes(status) ? 'auth' : 'http';
-      let help = status===402 ? 'Esta petición requiere créditos; no se usarán modelos de pago.' : status===429 ? 'Límite gratuito o alta demanda. Espera antes de reanudar.' : [502,503,504].includes(status) ? 'Alta demanda temporal. Espera antes de reanudar.' : '';
+      let help = status===402 ? 'This request requires credits. Paid models will not be used.' : status===429 ? 'Free-tier limit or high demand. Wait before resuming.' : [502,503,504].includes(status) ? 'Temporarily busy. Wait before resuming.' : '';
       return {ok:false,text:null,errorType,errorMessage:`OpenRouter HTTP ${status}. ${help} ${info} Tu borrador sigue guardado.`,raw:data};
     }
     const content=data?.choices?.[0]?.message?.content;
@@ -40,8 +40,8 @@ export class OpenRouterFreeProvider extends AIProvider {
       const chosenModel = String(data?.model || model).slice(0,120);
       const reasoningTokens = Number(data?.usage?.completion_tokens_details?.reasoning_tokens || 0);
       const help = !prose && (finishReason === 'length' || reasoningTokens > 0)
-        ? 'El modelo agotó sus tokens antes de escribir texto visible. '
-        : !prose ? 'El modelo devolvió una respuesta sin texto visible. ' : 'La respuesta no era prosa válida. ';
+        ? 'The model used its tokens before generating visible text. '
+        : !prose ? 'The model returned a response with no visible text. ' : 'The response was not valid prose. ';
       return {
         ok:false, text:null, errorType:'empty',
         errorMessage:help + 'Modelo: ' + chosenModel + '; motivo: ' + finishReason + '. En Ajustes cambia el modelo de OpenRouter a arcee-ai/trinity-large-preview:free y pulsa Reanudar borrador. Nada se ha borrado.',
