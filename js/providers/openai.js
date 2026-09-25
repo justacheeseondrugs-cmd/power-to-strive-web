@@ -7,7 +7,7 @@ export class OpenAIProvider extends AIProvider {
     const apiKey = this.config.apiKey;
     const model = this.config.model || 'gpt-4o';
     if (!apiKey) {
-      return { ok: false, text: null, errorType: 'auth', errorMessage: 'Falta la API key de OpenAI en Ajustes.', raw: null };
+      return { ok: false, text: null, errorType: 'auth', errorMessage: 'OpenAI API key is missing. Add it in Settings.', raw: null };
     }
     const url = 'https://api.openai.com/v1/chat/completions';
     // Los modelos de razonamiento (GPT-5 / o-series) requieren
@@ -39,7 +39,7 @@ export class OpenAIProvider extends AIProvider {
           body: JSON.stringify(body),
         });
       } catch (err) {
-        return { ok: false, text: null, errorType: 'network', errorMessage: 'Error de red al contactar OpenAI: ' + err.message, raw: err };
+        return { ok: false, text: null, errorType: 'network', errorMessage: 'Network error while contacting OpenAI: ' + err.message, raw: err };
       }
 
       try { data = await res.json(); } catch { data = null; }
