@@ -57,7 +57,7 @@ export async function generateContinuityMemory(chapter) {
   if (!result.ok || isLikelyInvalidProse(result.text)) return { ok: false, error: result.errorMessage || 'No se pudo generar la memoria de continuidad.' };
   const fields = parseMemoryResponse(result.text);
   if (!Object.values(fields).some((value) => String(value || '').trim())) {
-    return { ok: false, error: 'La IA no devolvió un resumen de continuidad reconocible. No se ha guardado una memoria vacía.' };
+    return { ok: false, error: 'The AI did not return a usable continuity summary. No empty memory was saved.' };
   }
   // Rehacer una memoria sustituye la anterior del MISMO capítulo, sin duplicarla.
   const previous = await db.getByIndex('memoryEntries', 'by_chapter', chapter.id);
@@ -90,6 +90,6 @@ export async function rewriteChapter(chapter, rewriteInstructions) {
   });
   const userPrompt = `CAPÍTULO ORIGINAL:\n\n${chapter.content}\n\n---\n\nReescribe este capítulo aplicando las instrucciones indicadas, conservando lo que no se pidió cambiar.`;
   const result = await provider.generate({ systemPrompt, userPrompt, maxOutputTokens: 4000, temperature: 1.0 });
-  if (!result.ok || isLikelyInvalidProse(result.text)) return { ok: false, error: result.errorMessage || 'La reescritura no devolvió prosa válida; no se guardó ningún cambio.' };
+  if (!result.ok || isLikelyInvalidProse(result.text)) return { ok: false, error: result.errorMessage || 'The rewrite did not return valid prose. No changes were saved.' };
   return { ok: true, text: result.text.trim() };
 }
