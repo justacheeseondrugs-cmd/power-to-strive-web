@@ -1,0 +1,43 @@
+name: Check Inky Paws branding
+on:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "manifest.webmanifest"
+      - "css/style.css"
+      - "icons/user-cat-logo.svg"
+      - "scripts/build-logo-icons.py"
+      - ".github/workflows/check-inky-paws.yml"
+  workflow_dispatch:
+jobs:
+  branding:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate branding, mascot, and unchanged browser scope
+        run: |
+          python - <<'PY'
+          import base64, json, re, xml.etree.ElementTree as ET
+          from pathlib import Path
+          page = Path('index.html').read_text()
+          css = Path('css/style.css').read_text()
+          manifest = json.loads(Path('manifest.webmanifest').read_text())
+          svg = Path('icons/user-cat-logo.svg').read_text()
+          ET.fromstring(svg)
+          assert '<title>Inky Paws' in page
+          assert 'class="brand-title">Inky Paws<' in page
+          assert 'Where stories bloom softly' in page
+          assert 'A little more magic today?' in page
+          assert 'Your stories are right where you left them.' in page
+          assert 'Berkshire Swash' in css
+          assert manifest['name'] == 'Inky Paws'
+          assert manifest['short_name'] == 'Inky Paws'
+          assert manifest['start_url'] == './index.html'
+          assert manifest['scope'] == './'
+          assert 'data:image/webp;base64,' in svg
+          logo = base64.b64decode(re.search(r'data:image/webp;base64,([A-Za-z0-9+/=]+)', svg).group(1), validate=True)
+          assert logo[:4] == b'RIFF' and logo[8:12] == b'WEBP'
+          assert 'icons/user-cat-logo.svg' in Path('sw.js').read_text()
+          print('PASS: Inky Paws name, wording, logo source, font, preserved scope and offline asset.')
+          PY
