@@ -1,7 +1,7 @@
 // sw.js — cachea sólo el "shell" de la app (HTML/CSS/JS propios) para que
 // abra offline. Las llamadas a la API de IA siempre necesitan red y nunca
 // se cachean aquí.
-const CACHE = 'pts-studio-v10';
+const CACHE = 'pts-studio-v11';
 const SHELL = [
   './',
   './index.html',
@@ -28,6 +28,10 @@ const SHELL = [
   './js/ui/appearance.js',
   './icons/icon.svg',
   './icons/black-cat.svg',
+  './icons/user-cat-logo.svg',
+  './icons/logo-192.png',
+  './icons/logo-512.png',
+  './icons/logo-maskable-512.png',
 ];
 
 self.addEventListener('install', (event) => {
