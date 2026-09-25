@@ -7,8 +7,9 @@ let isRunning = false;
 const lines = (t) => String(t || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
 
 export async function renderWrite(root) {
-  const [settings, active, documents] = await Promise.all([
-    db.get('settings','main'), getActiveGenerationState(), db.getAll('documents')
+  const [settings, active, documents, plannerDraft] = await Promise.all([
+    db.get('settings','main'), getActiveGenerationState(), db.getAll('documents'),
+    db.get('settings','planner-draft:' + db.getActiveProjectId())
   ]);
   const hasKey = !!settings?.apiKeys?.[settings.provider];
   const docs = documents.filter((d) => d.active !== false).sort((a,b) => (b.priority || 0)-(a.priority || 0));
@@ -41,6 +42,13 @@ export async function renderWrite(root) {
     '<div><label class="field-label">&nbsp;</label><button class="btn btn-primary" id="w-generate-btn" style="width:100%" '+(!hasKey || active ? 'disabled' : '')+'>✒️ Escribir primer bloque</button></div></div></div>',
     '<div class="card paper" id="w-paper-card" style="display:none"><div class="paper-title" id="w-paper-title"></div><div class="muted" id="w-paper-meta"></div><hr><div class="paper-readonly manuscript-rendered" id="w-paper-text"></div></div>'
   ].join('');
+  // An explicitly chosen brainstorm suggestion is only a draft: the author
+  // still reviews it and fills title, cast, scene plan and ending before writing.
+  if (plannerDraft?.text && !active) {
+    root.querySelector('#w-instructions').value = plannerDraft.text;
+    await db.del('settings',plannerDraft.id);
+    toast('Idea de planificación lista para revisar en las instrucciones.');
+  }
   document.getElementById('w-generate-btn')?.addEventListener('click',onGenerateClick);
   if(active){ renderBanner(active); showPaper(active); }
 }
