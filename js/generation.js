@@ -185,7 +185,7 @@ export async function runGenerationLoop(state, onProgress, shouldStop) {
     const leaks = forbidden.filter((name) => new RegExp('\\b'+escaped(name)+'\\b','i').test(result.text));
     if (leaks.length) {
       state.status = 'paused_error';
-      state.lastError = {type:'cast',message:'El bloque incluyó personajes prohibidos: '+leaks.join(', ')+'. No se añadió al capítulo; cambia las instrucciones y vuelve a intentarlo.',at:new Date().toISOString()};
+      state.lastError = {type:'cast',message:'The block included forbidden characters: '+leaks.join(', ')+'. It was not added to the chapter; revise your instructions and try again.',at:new Date().toISOString()};
       state.updatedAt = new Date().toISOString();
       await db.put('generationState',state);
       onProgress?.({phase:'error',state});
@@ -208,9 +208,9 @@ export async function runGenerationLoop(state, onProgress, shouldStop) {
 
 export async function approvePendingBlock(chapterId, editedText) {
   const state = await db.get('generationState',chapterId);
-  if (!state || state.status !== 'awaiting_review') throw new Error('No hay un bloque pendiente de aprobación.');
+  if (!state || state.status !== 'awaiting_review') throw new Error('There is no block awaiting approval.');
   const content = String(editedText || '').trim();
-  if (wordCount(content) < 15) throw new Error('El bloque es demasiado corto; revísalo antes de guardarlo.');
+  if (wordCount(content) < 15) throw new Error('This block is too short. Review it before saving.');
   state.accumulatedText += (state.accumulatedText ? '\n\n' : '') + content;
   state.wordsSoFar = wordCount(state.accumulatedText);
   state.blocksDone += 1;
