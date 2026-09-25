@@ -1,7 +1,7 @@
 {
-  "name": "Power to Strive Studio",
-  "short_name": "PtS Studio",
-  "description": "Estudio personal de escritura de fanfiction largo asistido por IA.",
+  "name": "Inky Paws",
+  "short_name": "Inky Paws",
+  "description": "Where stories bloom softly. Your cozy fanfiction writing studio.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
