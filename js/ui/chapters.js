@@ -2,6 +2,57 @@ import { db } from '../db.js';
 import { escapeHtml, renderManuscript, toast, fmtDate, debounce, wordCount, openModal, closeModal, bus } from '../utils.js';
 import { rewriteChapter, generateContinuityMemory } from '../memoryEngine.js';
 
+function safeFilename(value, fallback = 'chapter') {
+  const cleaned = String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/g, '')
+    .slice(0, 100);
+  return cleaned || fallback;
+}
+
+function downloadMarkdown(filename, markdown) {
+  const blob = new Blob([String(markdown || '')], { type:'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.endsWith('.md') ? filename : filename + '.md';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function chapterAsMarkdown(chapter) {
+  const title = String(chapter?.title || 'Untitled chapter').trim();
+  const body = String(chapter?.content || '').trim();
+  return '# ' + title + '\n\n' + body + '\n';
+}
+
+async function downloadChapterMarkdown(id) {
+  const chapter = await db.get('chapters',id);
+  if (!chapter) return toast('No se encontró el capítulo.',{error:true});
+  downloadMarkdown(safeFilename(chapter.title,'chapter') + '.md', chapterAsMarkdown(chapter));
+  toast('Capítulo descargado en .md · 0 tokens de IA.');
+}
+
+async function downloadAllChaptersMarkdown(chapters) {
+  if (!chapters.length) return toast('No hay capítulos para descargar.',{error:true});
+  const workspace = document.getElementById('workspace-label')?.textContent?.trim() || 'Power to Strive';
+  const body = [
+    '# ' + workspace,
+    '',
+    chapters.map((chapter) => chapterAsMarkdown(chapter).trim()).join('\n\n---\n\n'),
+    ''
+  ].join('\n');
+  downloadMarkdown(safeFilename(workspace,'power-to-strive') + ' - chapters.md', body);
+  toast('Todos los capítulos descargados en un solo .md · 0 tokens de IA.',{ms:6000});
+}
+
+
 bus.on('chapters-changed', () => {
   const root = document.getElementById('view-chapters');
   if (root && root.classList.contains('active')) renderChapters(root);
@@ -11,8 +62,12 @@ export async function renderChapters(root) {
   const chapters = (await db.getAll('chapters')).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   root.innerHTML = `
     <h2 class="section-title">Capítulos</h2>
-    <p class="section-hint">Biblioteca de todos tus capítulos. Ábrelos para leer/editar, reescribirlos con instrucciones o duplicarlos.</p>
+    <p class="section-hint">Biblioteca de todos tus capítulos. Los archivos .md se crean localmente y no usan la API ni consumen tokens.</p>
+    <div class="btn-row chapter-export-row">
+      <button class="btn btn-ghost" id="chapters-download-all">⬇️ Descargar todos en .md</button>
+    </div>
     <div id="chapters-list"></div>`;
+  document.getElementById('chapters-download-all')?.addEventListener('click', () => downloadAllChaptersMarkdown(chapters));
   const list = document.getElementById('chapters-list');
   if (!chapters.length) { list.innerHTML = `<div class="empty"><span class="ic">📖</span>Todavía no tienes capítulos. Ve a «Escribir» para crear el primero.</div>`; return; }
   list.innerHTML = chapters.map((c) => `
@@ -25,6 +80,7 @@ export async function renderChapters(root) {
       </div>
       <div class="btn-row">
         <button class="btn btn-ghost btn-sm act-open">Abrir/editar</button>
+        <button class="btn btn-ghost btn-sm act-download">⬇️ .md</button>
         <button class="btn btn-ghost btn-sm act-rewrite">Reescribir</button>
         <button class="btn btn-ghost btn-sm act-memory">🧠 Crear/actualizar memoria</button>
         <button class="btn btn-ghost btn-sm act-duplicate">Duplicar</button>
@@ -34,6 +90,7 @@ export async function renderChapters(root) {
   list.querySelectorAll('.list-item').forEach((el) => {
     const id = el.dataset.id;
     el.querySelector('.act-open').addEventListener('click', () => openChapterEditor(id));
+    el.querySelector('.act-download').addEventListener('click', () => downloadChapterMarkdown(id));
     el.querySelector('.act-rewrite').addEventListener('click', () => openRewriteModal(id));
     el.querySelector('.act-memory').addEventListener('click', () => createChapterMemory(id, el));
     el.querySelector('.act-duplicate').addEventListener('click', () => duplicateChapter(id));
