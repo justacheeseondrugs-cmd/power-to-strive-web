@@ -1,6 +1,6 @@
 import { db } from './db.js';
-import { renderWrite } from './ui/write.js?v=20260919-workspaces-v1';
-import { renderChapters } from './ui/chapters.js?v=20260919-memory-button-2';
+import { renderWrite } from './ui/write.js?v=20260926-copy-buttons-v1';
+import { renderChapters } from './ui/chapters.js?v=20260926-copy-buttons-v1';
 import { renderCharacters } from './ui/characters.js';
 import { renderDocuments } from './ui/documents.js';
 import { renderMemory } from './ui/memory.js';
