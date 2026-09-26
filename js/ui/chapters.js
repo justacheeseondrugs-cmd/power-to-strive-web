@@ -1,5 +1,5 @@
 import { db } from '../db.js';
-import { escapeHtml, renderManuscript, toast, fmtDate, debounce, wordCount, openModal, closeModal, bus } from '../utils.js';
+import { escapeHtml, renderManuscript, toast, fmtDate, debounce, wordCount, openModal, closeModal, bus, copyTextToClipboard } from '../utils.js';
 import { rewriteChapter, generateContinuityMemory } from '../memoryEngine.js';
 
 function safeFilename(value, fallback = 'chapter') {
@@ -30,6 +30,19 @@ function chapterAsMarkdown(chapter) {
   const title = String(chapter?.title || 'Untitled chapter').trim();
   const body = String(chapter?.content || '').trim();
   return '# ' + title + '\n\n' + body + '\n';
+}
+
+async function copyChapterToClipboard(id) {
+  const chapter = await db.get('chapters',id);
+  if (!chapter) return toast('No se encontró el capítulo.',{error:true});
+  const body = String(chapter.content || '').trim();
+  if (!body) return toast('Este capítulo todavía no tiene texto para copiar.',{error:true});
+  try {
+    await copyTextToClipboard(String(chapter.title || 'Untitled chapter').trim() + '\n\n' + body);
+    toast('Capítulo copiado al portapapeles.');
+  } catch (err) {
+    toast(err.message || 'No se pudo copiar el capítulo.',{error:true});
+  }
 }
 
 async function downloadChapterMarkdown(id) {
@@ -80,6 +93,7 @@ export async function renderChapters(root) {
       </div>
       <div class="btn-row">
         <button class="btn btn-ghost btn-sm act-open">Abrir/editar</button>
+        <button class="btn btn-ghost btn-sm act-copy">📋 Copiar</button>
         <button class="btn btn-ghost btn-sm act-download">⬇️ .md</button>
         <button class="btn btn-ghost btn-sm act-rewrite">Reescribir</button>
         <button class="btn btn-ghost btn-sm act-memory">🧠 Crear/actualizar memoria</button>
@@ -90,6 +104,7 @@ export async function renderChapters(root) {
   list.querySelectorAll('.list-item').forEach((el) => {
     const id = el.dataset.id;
     el.querySelector('.act-open').addEventListener('click', () => openChapterEditor(id));
+    el.querySelector('.act-copy').addEventListener('click', () => copyChapterToClipboard(id));
     el.querySelector('.act-download').addEventListener('click', () => downloadChapterMarkdown(id));
     el.querySelector('.act-rewrite').addEventListener('click', () => openRewriteModal(id));
     el.querySelector('.act-memory').addEventListener('click', () => createChapterMemory(id, el));
