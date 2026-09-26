@@ -1,5 +1,5 @@
 import { db } from '../db.js';
-import { escapeHtml, renderManuscript, toast, bus } from '../utils.js';
+import { escapeHtml, renderManuscript, toast, bus, copyTextToClipboard } from '../utils.js';
 import { getActiveGenerationState, startOrResumeGeneration, discardGeneration, approvePendingBlock, rejectPendingBlock, finishReviewedChapter } from '../generation.js?v=20260919-workspaces-v1';
 import { generateContinuityMemory } from '../memoryEngine.js?v=20260919-workspaces-v1';
 
@@ -40,7 +40,7 @@ export async function renderWrite(root) {
     '<div id="w-reference-list">'+(docsHtml || '<p class="muted">Sin documentos activos en esta historia. Súbelos en Documentos si los necesitas.</p>')+'</div>',
     '<div class="grid-2"><div><label class="field-label" for="w-words">Extensión orientativa</label><select id="w-words"><option value="3000">3.000 palabras</option><option value="5000" selected>5.000 palabras</option><option value="7000">7.000 palabras</option></select></div>',
     '<div><label class="field-label">&nbsp;</label><button class="btn btn-primary" id="w-generate-btn" style="width:100%" '+(!hasKey || active ? 'disabled' : '')+'>✒️ Escribir primer bloque</button></div></div></div>',
-    '<div class="card paper" id="w-paper-card" style="display:none"><div class="paper-title" id="w-paper-title"></div><div class="muted" id="w-paper-meta"></div><hr><div class="paper-readonly manuscript-rendered" id="w-paper-text"></div></div>'
+    '<div class="card paper" id="w-paper-card" style="display:none"><div class="paper-title" id="w-paper-title"></div><div class="muted" id="w-paper-meta"></div><div class="btn-row"><button type="button" class="btn btn-ghost btn-sm" id="w-copy-chapter-btn">📋 Copiar capítulo</button></div><hr><div class="paper-readonly manuscript-rendered" id="w-paper-text"></div></div>'
   ].join('');
   // An explicitly chosen brainstorm suggestion is only a draft: the author
   // still reviews it and fills title, cast, scene plan and ending before writing.
@@ -74,7 +74,7 @@ function renderBanner(state) {
     '<div class="progress-track"><div class="progress-fill" style="width:'+pct+'%"></div></div>',
     '<div class="muted">'+state.wordsSoFar+' / '+state.targetWords+' palabras aceptadas · '+state.blocksDone+' bloque(s)</div>',
     state.lastError ? '<p class="muted">'+escapeHtml(state.lastError.message)+'</p>':'','</div></div>',
-    waiting ? '<div class="generation-review"><h3>✏️ Lee, corrige y aprueba este bloque</h3><p class="scene-guide">Este texto todavía NO es parte del capítulo. Si algo no te gusta, edítalo o descártalo antes de continuar.</p><textarea id="w-review-text" rows="12">'+escapeHtml(state.pendingText || '')+'</textarea><div class="review-actions"><button type="button" class="btn btn-primary" id="w-approve-btn">✓ Aceptar bloque</button><button type="button" class="btn btn-ghost" id="w-reject-btn">Descartar SOLO este bloque</button></div></div>' : '',
+    waiting ? '<div class="generation-review"><h3>✏️ Lee, corrige y aprueba este bloque</h3><p class="scene-guide">Este texto todavía NO es parte del capítulo. Si algo no te gusta, edítalo o descártalo antes de continuar.</p><textarea id="w-review-text" rows="12">'+escapeHtml(state.pendingText || '')+'</textarea><div class="review-actions"><button type="button" class="btn btn-primary" id="w-approve-btn">✓ Aceptar bloque</button><button type="button" class="btn btn-ghost" id="w-copy-block-btn">📋 Copiar bloque</button><button type="button" class="btn btn-ghost" id="w-reject-btn">Descartar SOLO este bloque</button></div></div>' : '',
     showControls ? '<div class="card"><h3>🎬 Siguiente bloque</h3>'+
        (planOptions ? '<label class="field-label" for="w-current-scene">¿Qué escena debe avanzar ahora?</label><select id="w-current-scene">'+planOptions+'</select>':'')+
        '<label class="field-label" for="w-block-notes">Correcciones para el siguiente bloque</label><textarea id="w-block-notes" rows="3" placeholder="No repetir la plaza. Anya YA llegó: continúa con su encuentro con Erwin."></textarea>'+
@@ -83,6 +83,11 @@ function renderBanner(state) {
        '<button type="button" class="btn btn-danger" id="w-discard-btn">Cerrar generación</button></div>'+
        '<p class="scene-guide">Finaliza solo cuando el desenlace esté completo. Cerrar generación conserva lo aprobado como borrador.</p></div>':''
   ].join('');
+  document.getElementById('w-copy-block-btn')?.addEventListener('click',async()=>{
+    const text=document.getElementById('w-review-text')?.value || state.pendingText || '';
+    try{await copyTextToClipboard(text);toast('Bloque copiado al portapapeles.');}
+    catch(err){toast(err.message || 'No se pudo copiar el bloque.',{error:true});}
+  });
   document.getElementById('w-approve-btn')?.addEventListener('click',async(e)=>{
     e.currentTarget.disabled=true;
     try{await approvePendingBlock(state.chapterId,document.getElementById('w-review-text').value);
@@ -132,6 +137,18 @@ function showPaper(state){
   document.getElementById('w-paper-title').textContent=state.chapterTitle;
   document.getElementById('w-paper-meta').textContent=state.wordsSoFar+' / '+state.targetWords+' palabras aprobadas';
   document.getElementById('w-paper-text').innerHTML=renderManuscript(state.accumulatedText || '(ningún bloque aprobado todavía)');
+  const copyBtn=document.getElementById('w-copy-chapter-btn');
+  if(copyBtn){
+    copyBtn.disabled=!String(state.accumulatedText || '').trim();
+    copyBtn.onclick=async()=>{
+      const text=String(state.accumulatedText || '').trim();
+      if(!text)return toast('Todavía no hay bloques aprobados para copiar.',{error:true});
+      try{
+        await copyTextToClipboard(state.chapterTitle+'\n\n'+text);
+        toast('Capítulo copiado al portapapeles.');
+      }catch(err){toast(err.message || 'No se pudo copiar el capítulo.',{error:true});}
+    };
+  }
 }
 
 async function onGenerateClick(){
