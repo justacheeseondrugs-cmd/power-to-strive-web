@@ -1,0 +1,50 @@
+name: Check copy buttons
+on:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "js/app.js"
+      - "js/utils.js"
+      - "js/ui/write.js"
+      - "js/ui/chapters.js"
+      - "sw.js"
+      - ".github/workflows/check-copy-buttons.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  copy-buttons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Parse changed JavaScript
+        run: |
+          node --check js/utils.js
+          node --check js/ui/write.js
+          node --check js/ui/chapters.js
+          node --check js/app.js
+          node --check sw.js
+      - name: Verify copy controls are wired and data model is untouched
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          u=Path('js/utils.js').read_text()
+          w=Path('js/ui/write.js').read_text()
+          c=Path('js/ui/chapters.js').read_text()
+          a=Path('js/app.js').read_text()
+          d=Path('js/db.js').read_text()
+          assert 'copyTextToClipboard' in u
+          assert 'navigator.clipboard.writeText' in u
+          assert 'w-copy-block-btn' in w
+          assert 'w-copy-chapter-btn' in w
+          assert "document.getElementById('w-review-text')?.value" in w
+          assert 'copyChapterToClipboard' in c
+          assert 'act-copy' in c
+          assert '20260926-copy-buttons-v1' in a
+          assert 'const DB_VERSION = 1' in d
+          print('PASS: block and chapter copy buttons are wired; IndexedDB schema is unchanged.')
+          PY
